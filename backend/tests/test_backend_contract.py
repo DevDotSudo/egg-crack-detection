@@ -1,14 +1,19 @@
 import tempfile
+import sys
 import unittest
 from pathlib import Path
 
 import cv2
 import numpy as np
 
-from app.detector import _decode_input_image, _fuzzy_egg_size
-from app.config import CONFIG
-from app.history_store import HistoryStore
-from app.main import app
+SRC = Path(__file__).resolve().parents[1] / 'src'
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
+
+from app.api.main import app
+from app.core.config import CONFIG
+from app.repositories.history_store import HistoryStore
+from app.services.detector import _decode_input_image, _fuzzy_egg_size
 
 
 class BackendContractTests(unittest.TestCase):

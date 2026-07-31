@@ -2,6 +2,17 @@
 
 The backend owns all image processing and detection. It does not search for cameras, open webcams, stream previews, or capture frames. Flutter only detects cameras, shows the preview, captures the original image bytes, and sends those bytes to the API.
 
+## Structure
+
+- `src/app/api/` contains FastAPI app wiring and endpoint handlers.
+- `src/app/core/` contains shared configuration.
+- `src/app/services/` contains detection and image-processing services.
+- `src/app/repositories/` contains persistence adapters such as history storage.
+- `src/app/schemas/` contains API request and response models.
+- `tests/` contains unit and contract tests.
+- `scripts/` contains development diagnostics and smoke-test helpers.
+- `data/` contains local runtime history.
+
 ## Detection flow
 
 1. Receive the untouched captured image.

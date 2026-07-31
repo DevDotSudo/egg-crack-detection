@@ -11,7 +11,7 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 python -m pip install pyinstaller
 
-python -m PyInstaller --noconfirm --clean --onefile --name backend --collect-all cv2 --collect-all uvicorn --hidden-import multipart run_server.py
+python -m PyInstaller --noconfirm --clean --onefile --name backend --paths src --collect-all cv2 --collect-all uvicorn --hidden-import app.api.main --hidden-import multipart run_server.py
 
 set "RELEASE_DIR=%~dp0..\frontend\build\windows\x64\runner\Release"
 if not exist "%RELEASE_DIR%" (

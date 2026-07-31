@@ -6,3 +6,14 @@ build/
 windows/flutter/ephemeral/
 *.iml
 .idea/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+backend/output/
+backend/dist/
+backend/build/
+backend/*.spec
+backend/backend_startup.log

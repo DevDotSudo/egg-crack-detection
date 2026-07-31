@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:camera/camera.dart';
@@ -143,18 +144,36 @@ class _CameraScreenState extends State<CameraScreen> {
     });
 
     try {
-      final picture = await _cameraSession.takePicture();
-      final bytes = await picture.readAsBytes();
-      if (bytes.isEmpty) {
-        throw StateError('The captured image is empty.');
+      const frameCount = 3;
+      final frames = <Uint8List>[];
+      String? firstFilename;
+      for (var index = 0; index < frameCount; index++) {
+        final picture = await _cameraSession.takePicture();
+        try {
+          final bytes = await picture.readAsBytes();
+          if (bytes.isEmpty) {
+            throw StateError('A captured image is empty.');
+          }
+          frames.add(bytes);
+          firstFilename ??= picture.name.isNotEmpty
+              ? picture.name
+              : 'camera-${DateTime.now().millisecondsSinceEpoch}.jpg';
+        } finally {
+          if (picture.path.isNotEmpty) {
+            try {
+              await File(picture.path).delete();
+            } catch (_) {}
+          }
+        }
+        if (index + 1 < frameCount) {
+          await Future<void>.delayed(const Duration(milliseconds: 120));
+        }
       }
 
-      final filename = picture.name.isNotEmpty
-          ? picture.name
-          : 'camera-${DateTime.now().millisecondsSinceEpoch}.jpg';
-
-      final result = await _repository.detectCapturedImage(
-        imageBytes: bytes,
+      final filename = firstFilename ??
+          'camera-${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final result = await _repository.detectMultiFrame(
+        frames: frames,
         filename: filename,
       );
 
