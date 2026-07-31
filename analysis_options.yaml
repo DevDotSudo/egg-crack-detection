@@ -1,0 +1,12 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    - egg-crack-detection-main/**
+    - third_party/**
+
+linter:
+  rules:
+    prefer_const_constructors: false
+    prefer_single_quotes: true
+    sort_child_properties_last: true

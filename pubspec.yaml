@@ -1,0 +1,63 @@
+﻿name: egg_crack_detection
+description: Desktop app for egg crack detection with Flutter OpenCV camera capture and Python detection.
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State management
+  flutter_bloc: ^8.1.5
+  equatable: ^2.0.5
+
+  # Routing
+  go_router: ^14.2.0
+
+  # Dependency injection
+  get_it: ^7.7.0
+
+  # Networking
+  dio: ^5.5.0
+
+  # Desktop-friendly file/dir picking
+  file_selector: ^1.0.3
+
+  # Fonts / icons
+  google_fonts: ^6.2.1
+  cupertino_icons: ^1.0.6
+  window_manager: ^0.4.3
+
+  # Utilities
+  intl: ^0.19.0
+  path: ^1.9.0
+  fpdart: ^1.1.0
+
+  camera: ^0.12.0+2
+  camera_windows: ^0.2.6+4
+  
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+dependency_overrides:
+  dartcv4:
+    path: third_party/dartcv4_2_1_0
+
+hooks:
+  user_defines:
+    dartcv4:
+      include_modules:
+        - imgcodecs
+        - imgproc
+        - videoio
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/icons/
+    - assets/sample_eggs/
