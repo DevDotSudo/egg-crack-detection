@@ -195,7 +195,7 @@ class DetectionConfig:
     pale_surface_saturation_weight: float = 1.1
     pale_surface_support_radius: int = 10
     pale_surface_min_pixels: int = 90
-    pale_surface_min_skeleton_length: float = 30.0
+    pale_surface_min_skeleton_length: float = 55.0
     pale_surface_max_skeleton_length: float = 95.0
     pale_surface_max_average_thickness: float = 6.2
     pale_surface_max_density: float = 0.58
@@ -224,7 +224,7 @@ class DetectionConfig:
     pale_recovery_anchor_min_thickness_ratio: float = 1.15
     pale_recovery_min_total_length: float = 220.0
     pale_recovery_min_network_span: float = 120.0
-    pale_recovery_min_shell_depth_ratio: float = 0.08
+    pale_recovery_min_shell_depth_ratio: float = 0.04
     pale_recovery_min_strength_p90: float = 112.0
     pale_recovery_max_branch_ratio: float = 0.72
     pale_recovery_max_axis_deviation: float = 0.16
@@ -234,7 +234,7 @@ class DetectionConfig:
 
     # The paper-style channel uses the same full-egg analysis area as the main
     # detector instead of a center-only fallback.
-    paper_min_depth_ratio: float = 0.15
+    paper_min_depth_ratio: float = 0.05
 
     # Component filtering and shell-artifact rejection.
     smooth_band_min_length: float = 75.0
@@ -250,9 +250,9 @@ class DetectionConfig:
     smooth_short_arc_min_axis_deviation: float = 0.030
     smooth_short_arc_max_chord_ratio: float = 0.86
     smooth_short_arc_max_residual: float = 0.18
-    min_component_pixels: int = 5
-    min_component_span: float = 12.0
-    min_skeleton_length: float = 10.0
+    min_component_pixels: int = 12
+    min_component_span: float = 28.0
+    min_skeleton_length: float = 35.0
     min_elongation: float = 1.3
     preferred_max_thickness: float = 7.5
     max_component_thickness: float = 8.0
@@ -297,8 +297,8 @@ class DetectionConfig:
     fragmented_texture_crack_min_texture_overlap: float = 0.20
     fragmented_texture_crack_min_score: float = 4.5
 
-    thin_crack_min_length: float = 12.0
-    thin_crack_min_span: float = 10.0
+    thin_crack_min_length: float = 55.0
+    thin_crack_min_span: float = 45.0
     thin_crack_max_thickness: float = 5.5
     thin_crack_min_elongation: float = 1.6
     thin_crack_min_texture_strength: float = 28.0
@@ -377,8 +377,8 @@ class DetectionConfig:
     # ── Line filtering ──
     # Connected components from the morphological extraction are kept only
     # if they look like lines, not blobs.
-    line_min_span: float = 15.0
-    line_min_skeleton_length: float = 12.0
+    line_min_span: float = 32.0
+    line_min_skeleton_length: float = 40.0
     line_min_elongation: float = 2.5
     line_max_density: float = 0.45
     line_min_score: float = 0.5
@@ -387,7 +387,7 @@ class DetectionConfig:
     # Support growth: seeds grow into adjacent weak pixels.
     support_radius: int = 4
     rim_band_thickness: int = 3
-    rim_overlap_reject_ratio: float = 0.85
+    rim_overlap_reject_ratio: float = 0.92
     perimeter_depth_ratio: float = 0.08
     perimeter_min_component_overlap: float = 0.28
     perimeter_min_penetration_ratio: float = 0.025
@@ -400,8 +400,8 @@ class DetectionConfig:
     dark_crack_max_branch_ratio: float = 0.40
 
     # ── Crack decision ──
-    decision_min_longest: float = 12.0
-    decision_min_total_length: float = 16.0
+    decision_min_longest: float = 70.0
+    decision_min_total_length: float = 100.0
     decision_min_score: float = 0.50
 
     # ── Multi-frame validation ──

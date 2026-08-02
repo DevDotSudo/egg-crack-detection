@@ -776,3 +776,135 @@ INFO:     127.0.0.1:60276 - "GET /health HTTP/1.1" 200 OK
 INFO:     127.0.0.1:60277 - "POST /detect/camera/multi HTTP/1.1" 200 OK
 INFO:     127.0.0.1:60300 - "GET /health HTTP/1.1" 200 OK
 INFO:     127.0.0.1:60301 - "POST /detect/camera/multi HTTP/1.1" 200 OK
+
+--- Backend start 2026-08-02T15:16:29.151437 ---
+Command: C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\.venv\Scripts\python.exe C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+INFO:     Started server process [20276]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8756 (Press CTRL+C to quit)
+INFO:     127.0.0.1:56586 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56587 - "GET /detections?limit=1000 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56592 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56593 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56593 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56593 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56593 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56596 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56593 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56593 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56593 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56593 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56597 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56593 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56593 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56593 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56593 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64375 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56593 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56593 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64378 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56593 - "POST /detect/camera/multi HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64395 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64396 - "POST /detect/camera/multi HTTP/1.1" 200 OK
+
+--- Backend start 2026-08-02T15:50:43.965737 ---
+Command: C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\.venv\Scripts\python.exe C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+INFO:     Started server process [15224]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8756 (Press CTRL+C to quit)
+INFO:     127.0.0.1:59566 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59567 - "GET /detections?limit=1000 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58611 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58612 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58612 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58612 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58612 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58615 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58612 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58612 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58612 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58612 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58616 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58612 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58612 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58612 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58612 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58621 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58612 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58612 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58624 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58612 - "POST /detect/camera/multi HTTP/1.1" 200 OK
+
+--- Backend start 2026-08-02T16:03:00.944174 ---
+Command: C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\.venv\Scripts\python.exe C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+INFO:     Started server process [15224]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8756 (Press CTRL+C to quit)
+INFO:     127.0.0.1:56334 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56335 - "GET /detections?limit=1000 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59728 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59729 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59729 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59729 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59729 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51156 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59729 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59729 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59729 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59729 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57224 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59729 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59729 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59729 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59729 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57227 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59729 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59729 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57234 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57235 - "POST /detect/camera/multi HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52519 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52520 - "POST /detect/camera/multi HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51665 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51666 - "POST /detect/camera/multi HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50176 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50177 - "POST /detect/camera/multi HTTP/1.1" 200 OK
+
+--- Backend start 2026-08-02T16:17:11.638449 ---
+Command: C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\.venv\Scripts\python.exe C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+INFO:     Started server process [200]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8756 (Press CTRL+C to quit)
+INFO:     127.0.0.1:61641 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61644 - "GET /detections?limit=1000 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61649 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61650 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61650 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61650 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61650 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61653 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61650 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61650 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61650 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61650 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61654 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61650 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61650 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61650 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61650 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61657 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61650 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61650 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61660 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61650 - "POST /detect/camera/multi HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61679 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61680 - "POST /detect/camera/multi HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51225 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51226 - "POST /detect/camera/multi HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51146 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51147 - "POST /detect/camera/multi HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51316 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51317 - "POST /detect/camera/multi HTTP/1.1" 200 OK

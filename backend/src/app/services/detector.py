@@ -2532,9 +2532,10 @@ def _is_crack_seed(
         )
     )
     line_like = (
-        metrics['elongation'] >= cfg.min_elongation
-        or metrics['endpoints'] >= 2
-        or metrics['branchpoints'] >= 1
+        # Must look like a line or crack — either elongated enough or long
+        # enough to form a meaningful trace.  Tiny dot-shaped fragments
+        # (short skeleton AND low elongation) are rejected here.
+        metrics['elongation'] >= 2.5
         or metrics['skeleton_length'] >= 55.0
     )
     is_dark_hairline_source = source in (
@@ -3703,17 +3704,25 @@ def _draw_trace_overlay(
     trace_mask: np.ndarray,
     crack_mask: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Draw crack regions as a thin 1px bright red line trace following the exact crack centerline."""
+    """Draw crack region as a 1px red border polygon outline (no fill)."""
     overlay = image.copy()
 
-    # Skeletonize to obtain exact 1px thin crack centerline trace
-    skeleton = _skeletonize(crack_mask)
+    # Slightly dilate the crack mask so hairline cracks have enough area
+    # for findContours to trace a meaningful polygon boundary.
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    region = cv2.dilate(crack_mask, kernel, iterations=1)
 
-    # Draw exact 1px thin crack line in bright red (0, 0, 255)
-    overlay[skeleton > 0] = (0, 0, 255)
+    # Find contours of the crack region boundary
+    contours, _ = cv2.findContours(
+        region, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE,
+    )
 
-    # Build a visible mask from the 1px thin crack trace
-    visible = skeleton.copy()
+    # Draw 1px red border polygon, no fill
+    cv2.drawContours(overlay, contours, -1, (0, 0, 255), 1)
+
+    # Build visible mask from the contour outlines
+    visible = np.zeros(crack_mask.shape, dtype=np.uint8)
+    cv2.drawContours(visible, contours, -1, 255, 1)
 
     return overlay, visible
 
@@ -4667,12 +4676,18 @@ def detect_image_bytes(
         decision_score = min(decision_score, 0.35)
         thin_crack_score = 0.0
 
+    # At least one accepted component must look like a line/polygon —
+    # a cloud of dots with max elongation < 2.5 is not a crack.
+    _max_component_elongation = max(
+        (c.metrics['elongation'] for c in components), default=0.0
+    )
     normal_crack = bool(
         components
         and not texture_like_fragmentation
         and longest >= cfg.decision_min_longest
         and total_length >= cfg.decision_min_total_length
         and decision_score >= cfg.decision_min_score
+        and _max_component_elongation >= 2.5
     )
     thin_crack = bool(
         thin_texture_components
@@ -4696,6 +4711,78 @@ def detect_image_bytes(
     else:
         accepted_mask = np.zeros_like(paper_mask)
         components = []
+
+    # ── Dominance filter (component level) ───────────────────────────────────
+    # Remove components that are much weaker or less linear than the primary.
+    if len(components) > 1:
+        primary_length = max(
+            c.metrics['skeleton_length'] for c in components
+        )
+        primary_score = max(c.metrics['score'] for c in components)
+        primary_elongation = max(c.metrics['elongation'] for c in components)
+
+        # When a clearly linear primary exists (elongation >= 3.0), reject
+        # any blob-shaped co-component (elongation < 3.0).
+        elongation_floor = 3.0 if primary_elongation >= 3.0 else 0.0
+
+        dominant_components = [
+            c for c in components
+            if (
+                c.metrics['skeleton_length'] >= primary_length * 0.38
+                or c.metrics['score'] >= primary_score * 0.35
+            )
+            and c.metrics['elongation'] >= elongation_floor
+        ]
+        if dominant_components and len(dominant_components) < len(components):
+            components = dominant_components
+            accepted_mask = np.zeros_like(accepted_mask)
+            for _c in components:
+                _paste_component(accepted_mask, _c)
+
+    # ── Skeleton isolation cleanup (pixel level) ──────────────────────────────
+    # After the component filter, disconnected small skeleton segments that are
+    # far from the main crack trace are removed from the overlay.  This catches
+    # false clusters that were merged into a single large component by the
+    # texture-support step but are physically isolated from the real crack.
+    _skel_check = _skeletonize(accepted_mask)
+    _scc, _slabels, _sstats, _ = cv2.connectedComponentsWithStats(
+        _skel_check, 8,
+    )
+    if _scc > 2:  # more than background + one crack segment
+        _max_seg = max(
+            int(_sstats[_si, cv2.CC_STAT_AREA]) for _si in range(1, _scc)
+        )
+        _primary_label = max(
+            range(1, _scc),
+            key=lambda _si: int(_sstats[_si, cv2.CC_STAT_AREA]),
+        )
+        _primary_skel = (_slabels == _primary_label).astype(np.uint8) * 255
+        # Dilate primary skeleton to define a proximity zone (~50px).
+        _prox_kernel = cv2.getStructuringElement(
+            cv2.MORPH_ELLIPSE, (101, 101),
+        )
+        _primary_prox = cv2.dilate(_primary_skel, _prox_kernel)
+        # Build a cleaned accepted_mask keeping only nearby / large segments.
+        _clean_mask = np.zeros_like(accepted_mask)
+        for _si in range(1, _scc):
+            _seg_len = int(_sstats[_si, cv2.CC_STAT_AREA])
+            _seg_mask = (_slabels == _si).astype(np.uint8) * 255
+            _near_primary = cv2.countNonZero(
+                cv2.bitwise_and(_seg_mask, _primary_prox)
+            ) > 0
+            # Keep segment if: long enough OR near the primary crack trace.
+            if _seg_len >= _max_seg * 0.25 or _near_primary:
+                _seg_grown = cv2.dilate(
+                    _seg_mask,
+                    cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9)),
+                )
+                _clean_mask = cv2.bitwise_or(
+                    _clean_mask,
+                    cv2.bitwise_and(accepted_mask, _seg_grown),
+                )
+        if cv2.countNonZero(_clean_mask) > 0:
+            accepted_mask = _clean_mask
+    # ─────────────────────────────────────────────────────────────────────────
     trace_mask = _skeletonize(accepted_mask)
     traced_pixels = int(cv2.countNonZero(accepted_mask))
     traced_length = float(cv2.countNonZero(trace_mask))
