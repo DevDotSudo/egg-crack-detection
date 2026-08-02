@@ -20,6 +20,10 @@ class DetectionResponse(BaseModel):
     longest_candidate: float = 0.0
     mean_candidate_strength: float = 0.0
     detection_score: float = 0.0
+    primary_detection_channel: str = 'none'
+    pale_surface_score: float = 0.0
+    spatial_chain_score: float = 0.0
+    fragmentation_suppressed: bool = False
     threshold_used: int = 0
     paper_method_used: bool = True
     paper_method_crack: bool = False

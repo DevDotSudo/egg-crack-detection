@@ -187,10 +187,13 @@ class DetectionConfig:
     # candling. They are kept only when multiple nearby fragments form a
     # stronger local ridge than the surrounding shell texture.
     pale_surface_percentile: float = 98.0
+    pale_surface_weak_percentile: float = 85.0
     pale_surface_min_threshold: int = 65
+    pale_surface_min_weak_threshold: int = 18
     pale_surface_background_window: int = 31
     pale_surface_lightness_weight: float = 1.4
     pale_surface_saturation_weight: float = 1.1
+    pale_surface_support_radius: int = 10
     pale_surface_min_pixels: int = 90
     pale_surface_min_skeleton_length: float = 30.0
     pale_surface_max_skeleton_length: float = 95.0
@@ -207,10 +210,31 @@ class DetectionConfig:
     pale_surface_min_axis_alignment: float = 0.45
     pale_surface_min_connector_alignment: float = 0.25
     pale_surface_max_thickness_ratio: float = 1.90
+    pale_surface_branch_min_length_ratio: float = 0.72
+    pale_surface_branch_min_span_ratio: float = 0.62
+    pale_surface_branch_max_axis_deviation: float = 0.28
+    pale_surface_branch_max_density: float = 0.66
+    pale_surface_branch_min_strength_ratio: float = 0.70
+    pale_recovery_min_fragment_length: float = 35.0
+    pale_recovery_min_fragment_span: float = 20.0
+    pale_recovery_max_endpoint_gap: float = 36.0
+    pale_recovery_anchor_min_length: float = 80.0
+    pale_recovery_anchor_min_span: float = 60.0
+    pale_recovery_anchor_max_endpoint_gap: float = 64.0
+    pale_recovery_anchor_min_thickness_ratio: float = 1.15
+    pale_recovery_min_total_length: float = 220.0
+    pale_recovery_min_network_span: float = 120.0
+    pale_recovery_min_shell_depth_ratio: float = 0.08
+    pale_recovery_min_strength_p90: float = 112.0
+    pale_recovery_max_branch_ratio: float = 0.72
+    pale_recovery_max_axis_deviation: float = 0.16
+    pale_recovery_min_axis_alignment: float = 0.30
+    pale_recovery_min_connector_alignment: float = 0.75
+    pale_recovery_candidate_limit: int = 64
 
     # The paper-style channel uses the same full-egg analysis area as the main
     # detector instead of a center-only fallback.
-    paper_min_depth_ratio: float = 0.0
+    paper_min_depth_ratio: float = 0.15
 
     # Component filtering and shell-artifact rejection.
     smooth_band_min_length: float = 75.0
@@ -222,6 +246,10 @@ class DetectionConfig:
     smooth_arc_max_residual: float = 0.12
     smooth_arc_min_coverage: float = 0.14
     smooth_arc_max_chord_ratio: float = 0.76
+    smooth_short_arc_min_length: float = 24.0
+    smooth_short_arc_min_axis_deviation: float = 0.030
+    smooth_short_arc_max_chord_ratio: float = 0.86
+    smooth_short_arc_max_residual: float = 0.18
     min_component_pixels: int = 5
     min_component_span: float = 12.0
     min_skeleton_length: float = 10.0
@@ -381,6 +409,8 @@ class DetectionConfig:
     multi_frame_dilation: int = 5
     multi_frame_min_agreement: int = 2
     multi_frame_min_overlap: float = 0.18
+    multi_frame_min_weak_overlap: float = 0.14
+    multi_frame_max_support_area_ratio: float = 12.0
     multi_frame_registration_width: int = 512
     multi_frame_registration_height: int = 768
 

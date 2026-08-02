@@ -83,3 +83,696 @@ INFO:     127.0.0.1:59093 - "GET /health HTTP/1.1" 200 OK
 INFO:     127.0.0.1:59094 - "DELETE /history HTTP/1.1" 200 OK
 INFO:     127.0.0.1:60678 - "GET /health HTTP/1.1" 200 OK
 INFO:     127.0.0.1:60679 - "GET /history?limit=1000 HTTP/1.1" 200 OK
+
+--- Backend start 2026-08-02T00:58:26.303376 ---
+Command: py -3.11 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+No suitable Python runtime found
+Pass --list (-0) to see all detected environments on your machine
+or set environment variable PYLAUNCHER_ALLOW_INSTALL to use winget
+or open the Microsoft Store to the requested version.
+
+Backend exited with code 103
+
+--- Backend start 2026-08-02T00:58:26.819516 ---
+Command: py -3.13 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Traceback (most recent call last):
+  File "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py", line 4, in <module>
+    import uvicorn
+ModuleNotFoundError: No module named 'uvicorn'
+
+Backend exited with code 1
+
+--- Backend start 2026-08-02T00:58:27.502316 ---
+Command: py -3 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Unable to create process using '"C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\.dart_tool\hooks_runner\shared\dartcv4\build\cbfd79f975\Python\pythoncore-3.14-64\python.exe" "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py"': The system cannot find the file specified.
+
+
+Backend exited with code 101
+
+--- Backend start 2026-08-02T00:58:27.595236 ---
+Command: python C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Traceback (most recent call last):
+  File "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py", line 4, in <module>
+    import uvicorn
+ModuleNotFoundError: No module named 'uvicorn'
+
+Backend exited with code 1
+
+--- Backend start 2026-08-02T00:59:03.407152 ---
+Command: py -3.11 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+No suitable Python runtime found
+Pass --list (-0) to see all detected environments on your machine
+or set environment variable PYLAUNCHER_ALLOW_INSTALL to use winget
+or open the Microsoft Store to the requested version.
+
+Backend exited with code 103
+
+--- Backend start 2026-08-02T00:59:03.483452 ---
+Command: py -3.13 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Traceback (most recent call last):
+  File "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py", line 4, in <module>
+    import uvicorn
+ModuleNotFoundError: No module named 'uvicorn'
+
+Backend exited with code 1
+
+--- Backend start 2026-08-02T00:59:03.731144 ---
+Command: py -3 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Unable to create process using '"C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\.dart_tool\hooks_runner\shared\dartcv4\build\cbfd79f975\Python\pythoncore-3.14-64\python.exe" "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py"': The system cannot find the file specified.
+
+
+Backend exited with code 101
+
+--- Backend start 2026-08-02T00:59:03.809598 ---
+Command: python C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Traceback (most recent call last):
+  File "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py", line 4, in <module>
+    import uvicorn
+ModuleNotFoundError: No module named 'uvicorn'
+
+Backend exited with code 1
+
+--- Backend start 2026-08-02T00:59:09.906932 ---
+Command: py -3.11 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+No suitable Python runtime found
+Pass --list (-0) to see all detected environments on your machine
+or set environment variable PYLAUNCHER_ALLOW_INSTALL to use winget
+or open the Microsoft Store to the requested version.
+
+Backend exited with code 103
+
+--- Backend start 2026-08-02T00:59:10.030298 ---
+Command: py -3.13 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Traceback (most recent call last):
+  File "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py", line 4, in <module>
+    import uvicorn
+ModuleNotFoundError: No module named 'uvicorn'
+
+Backend exited with code 1
+
+--- Backend start 2026-08-02T00:59:10.259514 ---
+Command: py -3 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Unable to create process using '"C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\.dart_tool\hooks_runner\shared\dartcv4\build\cbfd79f975\Python\pythoncore-3.14-64\python.exe" "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py"': The system cannot find the file specified.
+
+
+Backend exited with code 101
+
+--- Backend start 2026-08-02T00:59:10.331651 ---
+Command: python C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Traceback (most recent call last):
+  File "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py", line 4, in <module>
+    import uvicorn
+ModuleNotFoundError: No module named 'uvicorn'
+
+Backend exited with code 1
+
+--- Backend start 2026-08-02T00:59:44.719353 ---
+Command: py -3.11 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+No suitable Python runtime found
+Pass --list (-0) to see all detected environments on your machine
+or set environment variable PYLAUNCHER_ALLOW_INSTALL to use winget
+or open the Microsoft Store to the requested version.
+
+Backend exited with code 103
+
+--- Backend start 2026-08-02T00:59:44.856160 ---
+Command: py -3.13 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Traceback (most recent call last):
+  File "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py", line 4, in <module>
+    import uvicorn
+ModuleNotFoundError: No module named 'uvicorn'
+
+Backend exited with code 1
+
+--- Backend start 2026-08-02T00:59:45.114809 ---
+Command: py -3 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Unable to create process using '"C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\.dart_tool\hooks_runner\shared\dartcv4\build\cbfd79f975\Python\pythoncore-3.14-64\python.exe" "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py"': The system cannot find the file specified.
+
+
+Backend exited with code 101
+
+--- Backend start 2026-08-02T00:59:45.202293 ---
+Command: python C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Traceback (most recent call last):
+  File "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py", line 4, in <module>
+    import uvicorn
+ModuleNotFoundError: No module named 'uvicorn'
+
+Backend exited with code 1
+
+--- Backend start 2026-08-02T00:59:51.659303 ---
+Command: py -3.11 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+No suitable Python runtime found
+Pass --list (-0) to see all detected environments on your machine
+or set environment variable PYLAUNCHER_ALLOW_INSTALL to use winget
+or open the Microsoft Store to the requested version.
+
+Backend exited with code 103
+
+--- Backend start 2026-08-02T00:59:51.730583 ---
+Command: py -3.13 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Traceback (most recent call last):
+  File "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py", line 4, in <module>
+    import uvicorn
+ModuleNotFoundError: No module named 'uvicorn'
+
+Backend exited with code 1
+
+--- Backend start 2026-08-02T00:59:51.942338 ---
+Command: py -3 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Unable to create process using '"C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\.dart_tool\hooks_runner\shared\dartcv4\build\cbfd79f975\Python\pythoncore-3.14-64\python.exe" "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py"': The system cannot find the file specified.
+
+
+Backend exited with code 101
+
+--- Backend start 2026-08-02T00:59:52.022572 ---
+Command: python C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Traceback (most recent call last):
+  File "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py", line 4, in <module>
+    import uvicorn
+ModuleNotFoundError: No module named 'uvicorn'
+
+Backend exited with code 1
+
+--- Backend start 2026-08-02T00:59:56.948490 ---
+Command: py -3.11 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+No suitable Python runtime found
+Pass --list (-0) to see all detected environments on your machine
+or set environment variable PYLAUNCHER_ALLOW_INSTALL to use winget
+or open the Microsoft Store to the requested version.
+
+Backend exited with code 103
+
+--- Backend start 2026-08-02T00:59:57.025457 ---
+Command: py -3.13 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Traceback (most recent call last):
+  File "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py", line 4, in <module>
+    import uvicorn
+ModuleNotFoundError: No module named 'uvicorn'
+
+Backend exited with code 1
+
+--- Backend start 2026-08-02T00:59:57.241827 ---
+Command: py -3 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Unable to create process using '"C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\.dart_tool\hooks_runner\shared\dartcv4\build\cbfd79f975\Python\pythoncore-3.14-64\python.exe" "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py"': The system cannot find the file specified.
+
+
+Backend exited with code 101
+
+--- Backend start 2026-08-02T00:59:57.316588 ---
+Command: python C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Traceback (most recent call last):
+  File "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py", line 4, in <module>
+    import uvicorn
+ModuleNotFoundError: No module named 'uvicorn'
+
+Backend exited with code 1
+
+--- Backend start 2026-08-02T01:01:15.381771 ---
+Command: py -3.11 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+No suitable Python runtime found
+Pass --list (-0) to see all detected environments on your machine
+or set environment variable PYLAUNCHER_ALLOW_INSTALL to use winget
+or open the Microsoft Store to the requested version.
+
+Backend exited with code 103
+
+--- Backend start 2026-08-02T01:01:15.508840 ---
+Command: py -3.13 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Traceback (most recent call last):
+  File "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py", line 4, in <module>
+    import uvicorn
+ModuleNotFoundError: No module named 'uvicorn'
+
+Backend exited with code 1
+
+--- Backend start 2026-08-02T01:01:15.801498 ---
+Command: py -3 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Unable to create process using '"C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\.dart_tool\hooks_runner\shared\dartcv4\build\cbfd79f975\Python\pythoncore-3.14-64\python.exe" "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py"': The system cannot find the file specified.
+
+
+Backend exited with code 101
+
+--- Backend start 2026-08-02T01:01:15.890907 ---
+Command: python C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Traceback (most recent call last):
+  File "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py", line 4, in <module>
+    import uvicorn
+ModuleNotFoundError: No module named 'uvicorn'
+
+Backend exited with code 1
+
+--- Backend start 2026-08-02T01:01:24.072587 ---
+Command: py -3.11 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+No suitable Python runtime found
+Pass --list (-0) to see all detected environments on your machine
+or set environment variable PYLAUNCHER_ALLOW_INSTALL to use winget
+or open the Microsoft Store to the requested version.
+
+Backend exited with code 103
+
+--- Backend start 2026-08-02T01:01:24.167878 ---
+Command: py -3.13 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Traceback (most recent call last):
+  File "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py", line 4, in <module>
+    import uvicorn
+ModuleNotFoundError: No module named 'uvicorn'
+
+Backend exited with code 1
+
+--- Backend start 2026-08-02T01:01:24.464577 ---
+Command: py -3 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Unable to create process using '"C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\.dart_tool\hooks_runner\shared\dartcv4\build\cbfd79f975\Python\pythoncore-3.14-64\python.exe" "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py"': The system cannot find the file specified.
+
+
+Backend exited with code 101
+
+--- Backend start 2026-08-02T01:01:24.546908 ---
+Command: python C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Traceback (most recent call last):
+  File "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py", line 4, in <module>
+    import uvicorn
+ModuleNotFoundError: No module named 'uvicorn'
+
+Backend exited with code 1
+
+--- Backend start 2026-08-02T01:01:29.398770 ---
+Command: py -3.11 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+No suitable Python runtime found
+Pass --list (-0) to see all detected environments on your machine
+or set environment variable PYLAUNCHER_ALLOW_INSTALL to use winget
+or open the Microsoft Store to the requested version.
+
+Backend exited with code 103
+
+--- Backend start 2026-08-02T01:01:29.477755 ---
+Command: py -3.13 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Traceback (most recent call last):
+  File "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py", line 4, in <module>
+    import uvicorn
+ModuleNotFoundError: No module named 'uvicorn'
+
+Backend exited with code 1
+
+--- Backend start 2026-08-02T01:01:29.699925 ---
+Command: py -3 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Unable to create process using '"C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\.dart_tool\hooks_runner\shared\dartcv4\build\cbfd79f975\Python\pythoncore-3.14-64\python.exe" "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py"': The system cannot find the file specified.
+
+
+Backend exited with code 101
+
+--- Backend start 2026-08-02T01:01:29.781217 ---
+Command: python C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Traceback (most recent call last):
+  File "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py", line 4, in <module>
+    import uvicorn
+ModuleNotFoundError: No module named 'uvicorn'
+
+Backend exited with code 1
+
+--- Backend start 2026-08-02T14:13:58.255576 ---
+Command: py -3.11 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+No suitable Python runtime found
+Pass --list (-0) to see all detected environments on your machine
+or set environment variable PYLAUNCHER_ALLOW_INSTALL to use winget
+or open the Microsoft Store to the requested version.
+
+Backend exited with code 103
+
+--- Backend start 2026-08-02T14:13:58.618546 ---
+Command: py -3.13 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Traceback (most recent call last):
+  File "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py", line 4, in <module>
+    import uvicorn
+ModuleNotFoundError: No module named 'uvicorn'
+
+Backend exited with code 1
+
+--- Backend start 2026-08-02T14:13:58.894752 ---
+Command: py -3 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Unable to create process using '"C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\.dart_tool\hooks_runner\shared\dartcv4\build\cbfd79f975\Python\pythoncore-3.14-64\python.exe" "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py"': The system cannot find the file specified.
+
+
+Backend exited with code 101
+
+--- Backend start 2026-08-02T14:13:58.943486 ---
+Command: python C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Traceback (most recent call last):
+  File "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py", line 4, in <module>
+    import uvicorn
+ModuleNotFoundError: No module named 'uvicorn'
+
+Backend exited with code 1
+
+--- Backend start 2026-08-02T14:14:04.443275 ---
+Command: py -3.11 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+No suitable Python runtime found
+Pass --list (-0) to see all detected environments on your machine
+or set environment variable PYLAUNCHER_ALLOW_INSTALL to use winget
+or open the Microsoft Store to the requested version.
+
+Backend exited with code 103
+
+--- Backend start 2026-08-02T14:14:04.499680 ---
+Command: py -3.13 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Traceback (most recent call last):
+  File "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py", line 4, in <module>
+    import uvicorn
+ModuleNotFoundError: No module named 'uvicorn'
+
+Backend exited with code 1
+
+--- Backend start 2026-08-02T14:14:04.705059 ---
+Command: py -3 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Unable to create process using '"C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\.dart_tool\hooks_runner\shared\dartcv4\build\cbfd79f975\Python\pythoncore-3.14-64\python.exe" "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py"': The system cannot find the file specified.
+
+
+Backend exited with code 101
+
+--- Backend start 2026-08-02T14:14:04.769911 ---
+Command: python C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Traceback (most recent call last):
+  File "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py", line 4, in <module>
+    import uvicorn
+ModuleNotFoundError: No module named 'uvicorn'
+
+Backend exited with code 1
+
+--- Backend start 2026-08-02T14:14:06.749822 ---
+Command: py -3.11 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+No suitable Python runtime found
+Pass --list (-0) to see all detected environments on your machine
+or set environment variable PYLAUNCHER_ALLOW_INSTALL to use winget
+or open the Microsoft Store to the requested version.
+
+Backend exited with code 103
+
+--- Backend start 2026-08-02T14:14:06.805112 ---
+Command: py -3.13 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Traceback (most recent call last):
+  File "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py", line 4, in <module>
+    import uvicorn
+ModuleNotFoundError: No module named 'uvicorn'
+
+Backend exited with code 1
+
+--- Backend start 2026-08-02T14:14:06.973299 ---
+Command: py -3 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Unable to create process using '"C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\.dart_tool\hooks_runner\shared\dartcv4\build\cbfd79f975\Python\pythoncore-3.14-64\python.exe" "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py"': The system cannot find the file specified.
+
+
+Backend exited with code 101
+
+--- Backend start 2026-08-02T14:14:07.030744 ---
+Command: python C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Traceback (most recent call last):
+  File "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py", line 4, in <module>
+    import uvicorn
+ModuleNotFoundError: No module named 'uvicorn'
+
+Backend exited with code 1
+
+--- Backend start 2026-08-02T14:14:13.469291 ---
+Command: py -3.11 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+No suitable Python runtime found
+Pass --list (-0) to see all detected environments on your machine
+or set environment variable PYLAUNCHER_ALLOW_INSTALL to use winget
+or open the Microsoft Store to the requested version.
+
+Backend exited with code 103
+
+--- Backend start 2026-08-02T14:14:13.524715 ---
+Command: py -3.13 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Traceback (most recent call last):
+  File "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py", line 4, in <module>
+    import uvicorn
+ModuleNotFoundError: No module named 'uvicorn'
+
+Backend exited with code 1
+
+--- Backend start 2026-08-02T14:14:13.711198 ---
+Command: py -3 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Unable to create process using '"C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\.dart_tool\hooks_runner\shared\dartcv4\build\cbfd79f975\Python\pythoncore-3.14-64\python.exe" "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py"': The system cannot find the file specified.
+
+
+Backend exited with code 101
+
+--- Backend start 2026-08-02T14:14:13.774873 ---
+Command: python C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Traceback (most recent call last):
+  File "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py", line 4, in <module>
+    import uvicorn
+ModuleNotFoundError: No module named 'uvicorn'
+
+Backend exited with code 1
+
+--- Backend start 2026-08-02T14:14:15.732893 ---
+Command: py -3.11 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+No suitable Python runtime found
+Pass --list (-0) to see all detected environments on your machine
+or set environment variable PYLAUNCHER_ALLOW_INSTALL to use winget
+or open the Microsoft Store to the requested version.
+
+Backend exited with code 103
+
+--- Backend start 2026-08-02T14:14:15.842243 ---
+Command: py -3.13 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Traceback (most recent call last):
+  File "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py", line 4, in <module>
+    import uvicorn
+ModuleNotFoundError: No module named 'uvicorn'
+
+Backend exited with code 1
+
+--- Backend start 2026-08-02T14:14:16.077179 ---
+Command: py -3 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Unable to create process using '"C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\.dart_tool\hooks_runner\shared\dartcv4\build\cbfd79f975\Python\pythoncore-3.14-64\python.exe" "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py"': The system cannot find the file specified.
+
+
+Backend exited with code 101
+
+--- Backend start 2026-08-02T14:14:16.131279 ---
+Command: python C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Traceback (most recent call last):
+  File "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py", line 4, in <module>
+    import uvicorn
+ModuleNotFoundError: No module named 'uvicorn'
+
+Backend exited with code 1
+
+--- Backend start 2026-08-02T14:15:01.228403 ---
+Command: py -3.11 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+No suitable Python runtime found
+Pass --list (-0) to see all detected environments on your machine
+or set environment variable PYLAUNCHER_ALLOW_INSTALL to use winget
+or open the Microsoft Store to the requested version.
+
+Backend exited with code 103
+
+--- Backend start 2026-08-02T14:15:01.279636 ---
+Command: py -3.13 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Traceback (most recent call last):
+  File "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py", line 4, in <module>
+    import uvicorn
+ModuleNotFoundError: No module named 'uvicorn'
+
+Backend exited with code 1
+
+--- Backend start 2026-08-02T14:15:01.501474 ---
+Command: py -3 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Unable to create process using '"C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\.dart_tool\hooks_runner\shared\dartcv4\build\cbfd79f975\Python\pythoncore-3.14-64\python.exe" "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py"': The system cannot find the file specified.
+
+
+Backend exited with code 101
+
+--- Backend start 2026-08-02T14:15:01.566316 ---
+Command: python C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Traceback (most recent call last):
+  File "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py", line 4, in <module>
+    import uvicorn
+ModuleNotFoundError: No module named 'uvicorn'
+
+Backend exited with code 1
+
+--- Backend start 2026-08-02T14:15:03.527947 ---
+Command: py -3.11 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+No suitable Python runtime found
+Pass --list (-0) to see all detected environments on your machine
+or set environment variable PYLAUNCHER_ALLOW_INSTALL to use winget
+or open the Microsoft Store to the requested version.
+
+Backend exited with code 103
+
+--- Backend start 2026-08-02T14:15:03.584347 ---
+Command: py -3.13 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Traceback (most recent call last):
+  File "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py", line 4, in <module>
+    import uvicorn
+ModuleNotFoundError: No module named 'uvicorn'
+
+Backend exited with code 1
+
+--- Backend start 2026-08-02T14:15:03.763683 ---
+Command: py -3 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Unable to create process using '"C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\.dart_tool\hooks_runner\shared\dartcv4\build\cbfd79f975\Python\pythoncore-3.14-64\python.exe" "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py"': The system cannot find the file specified.
+
+
+Backend exited with code 101
+
+--- Backend start 2026-08-02T14:15:03.821021 ---
+Command: python C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Traceback (most recent call last):
+  File "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py", line 4, in <module>
+    import uvicorn
+ModuleNotFoundError: No module named 'uvicorn'
+
+Backend exited with code 1
+
+--- Backend start 2026-08-02T14:15:56.936690 ---
+Command: py -3.11 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+No suitable Python runtime found
+Pass --list (-0) to see all detected environments on your machine
+or set environment variable PYLAUNCHER_ALLOW_INSTALL to use winget
+or open the Microsoft Store to the requested version.
+
+Backend exited with code 103
+
+--- Backend start 2026-08-02T14:15:56.989835 ---
+Command: py -3.13 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Traceback (most recent call last):
+  File "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py", line 4, in <module>
+    import uvicorn
+ModuleNotFoundError: No module named 'uvicorn'
+
+Backend exited with code 1
+
+--- Backend start 2026-08-02T14:15:57.191512 ---
+Command: py -3 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Unable to create process using '"C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\.dart_tool\hooks_runner\shared\dartcv4\build\cbfd79f975\Python\pythoncore-3.14-64\python.exe" "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py"': The system cannot find the file specified.
+
+
+Backend exited with code 101
+
+--- Backend start 2026-08-02T14:15:57.244614 ---
+Command: python C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Traceback (most recent call last):
+  File "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py", line 4, in <module>
+    import uvicorn
+ModuleNotFoundError: No module named 'uvicorn'
+
+Backend exited with code 1
+
+--- Backend start 2026-08-02T14:16:07.449743 ---
+Command: py -3.11 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+No suitable Python runtime found
+Pass --list (-0) to see all detected environments on your machine
+or set environment variable PYLAUNCHER_ALLOW_INSTALL to use winget
+or open the Microsoft Store to the requested version.
+
+Backend exited with code 103
+
+--- Backend start 2026-08-02T14:16:07.507031 ---
+Command: py -3.13 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Traceback (most recent call last):
+  File "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py", line 4, in <module>
+    import uvicorn
+ModuleNotFoundError: No module named 'uvicorn'
+
+Backend exited with code 1
+
+--- Backend start 2026-08-02T14:16:07.686803 ---
+Command: py -3 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Unable to create process using '"C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\.dart_tool\hooks_runner\shared\dartcv4\build\cbfd79f975\Python\pythoncore-3.14-64\python.exe" "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py"': The system cannot find the file specified.
+
+
+Backend exited with code 101
+
+--- Backend start 2026-08-02T14:16:07.741029 ---
+Command: python C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Traceback (most recent call last):
+  File "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py", line 4, in <module>
+    import uvicorn
+ModuleNotFoundError: No module named 'uvicorn'
+
+Backend exited with code 1
+
+--- Backend start 2026-08-02T14:16:09.706415 ---
+Command: py -3.11 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+No suitable Python runtime found
+Pass --list (-0) to see all detected environments on your machine
+or set environment variable PYLAUNCHER_ALLOW_INSTALL to use winget
+or open the Microsoft Store to the requested version.
+
+Backend exited with code 103
+
+--- Backend start 2026-08-02T14:16:09.759332 ---
+Command: py -3.13 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Traceback (most recent call last):
+  File "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py", line 4, in <module>
+    import uvicorn
+ModuleNotFoundError: No module named 'uvicorn'
+
+Backend exited with code 1
+
+--- Backend start 2026-08-02T14:16:09.925653 ---
+Command: py -3 C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Unable to create process using '"C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\.dart_tool\hooks_runner\shared\dartcv4\build\cbfd79f975\Python\pythoncore-3.14-64\python.exe" "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py"': The system cannot find the file specified.
+
+
+Backend exited with code 101
+
+--- Backend start 2026-08-02T14:16:09.993489 ---
+Command: python C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+Traceback (most recent call last):
+  File "C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py", line 4, in <module>
+    import uvicorn
+ModuleNotFoundError: No module named 'uvicorn'
+
+Backend exited with code 1
+
+--- Backend start 2026-08-02T14:18:43.876397 ---
+Command: C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\.venv\Scripts\python.exe C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+INFO:     Started server process [18408]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8756 (Press CTRL+C to quit)
+INFO:     127.0.0.1:64040 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64041 - "GET /detections?limit=200 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64046 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64047 - "GET /history?limit=1000 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64050 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64051 - "GET /detections?limit=200 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64051 - "GET /history?limit=1000 HTTP/1.1" 200 OK
+
+--- Backend start 2026-08-02T15:05:28.796967 ---
+Command: C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\.venv\Scripts\python.exe C:\Users\Davie\Programming\Flutter Development\egg-crack-detection\backend\run_server.py
+INFO:     Started server process [2920]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8756 (Press CTRL+C to quit)
+INFO:     127.0.0.1:49709 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49710 - "GET /detections?limit=1000 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49715 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49716 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49716 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49716 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49716 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49717 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49716 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49716 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49716 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49716 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49720 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49716 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49716 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49716 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49716 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49723 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49716 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49716 - "POST /focus/score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49727 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49716 - "POST /detect/camera/multi HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60276 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60277 - "POST /detect/camera/multi HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60300 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60301 - "POST /detect/camera/multi HTTP/1.1" 200 OK

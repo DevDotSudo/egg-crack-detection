@@ -3,6 +3,7 @@ import sys
 import unittest
 from dataclasses import replace
 from pathlib import Path
+from unittest.mock import patch
 
 import cv2
 import numpy as np
@@ -12,6 +13,7 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from app.core.config import CONFIG
+from app.services import detector as detector_module
 from app.services.detector import (
     CrackComponent,
     DetectionError,
@@ -198,6 +200,42 @@ def _modified_candled_egg(kind: str) -> bytes:
         ], dtype=np.int32)
         cv2.polylines(image, [first], False, (172, 184, 170), 2, cv2.LINE_AA)
         cv2.polylines(image, [second], False, (172, 184, 170), 2, cv2.LINE_AA)
+    elif kind == 'pale_branching_surface_crack':
+        # Mirrors the pasted candling sample: a pale vertical crack with
+        # angled/lateral branches on a mottled illuminated shell.
+        trunk = np.array([
+            [470, 180],
+            [474, 225],
+            [478, 270],
+            [476, 315],
+        ], dtype=np.int32)
+        left_branch = np.array([
+            [476, 315],
+            [440, 330],
+            [405, 342],
+            [365, 360],
+        ], dtype=np.int32)
+        right_branch = np.array([
+            [478, 270],
+            [510, 292],
+            [540, 325],
+        ], dtype=np.int32)
+        for branch in (trunk, left_branch, right_branch):
+            cv2.polylines(image, [branch], False, (178, 190, 168), 2, cv2.LINE_AA)
+    elif kind == 'pale_shell_arc':
+        # Smooth crescent-like shell marks near the lower body can look bright
+        # after candling, but they are not fracture geometry.
+        cv2.ellipse(
+            image,
+            (480, 395),
+            (34, 15),
+            0,
+            200,
+            340,
+            (178, 190, 168),
+            2,
+            cv2.LINE_AA,
+        )
     elif kind == 'glare':
         cv2.line(
             image,
@@ -295,6 +333,103 @@ def _decode_overlay(result: dict) -> np.ndarray:
     if overlay is None:
         raise AssertionError('Could not decode detector overlay')
     return overlay
+
+
+def _encode_png_b64(image: np.ndarray) -> str:
+    ok, encoded = cv2.imencode('.png', image)
+    if not ok:
+        raise AssertionError('Could not encode test image')
+    return base64.b64encode(encoded.tobytes()).decode('ascii')
+
+
+def _fake_camera_result(
+    *,
+    is_crack: bool,
+    crack_mask: np.ndarray,
+    support_mask: np.ndarray,
+    score: float = 0.0,
+) -> dict:
+    image = np.zeros((180, 140, 3), dtype=np.uint8)
+    contour = np.array([
+        [[18, 16]],
+        [[122, 16]],
+        [[122, 164]],
+        [[18, 164]],
+    ], dtype=np.int32)
+    encoded_image = _encode_png_b64(image)
+    return {
+        'id': 'fake-camera-frame',
+        'is_crack': is_crack,
+        'confidence': 0.72 if is_crack else 0.65,
+        'area_ratio': 0.001 if is_crack else 0.0,
+        'contour_length': 80.0 if is_crack else 0.0,
+        'processing_time_ms': 1,
+        'original_image_b64': encoded_image,
+        'overlay_image_b64': encoded_image,
+        'intermediate_steps': None,
+        'timestamp': '2026-08-02T00:00:00+00:00',
+        'candidate_components': 1 if is_crack else 0,
+        'raw_candidate_components': 1,
+        'dominant_crack_override': is_crack,
+        'candidate_pixels': int(cv2.countNonZero(crack_mask)) if is_crack else 0,
+        'longest_candidate': 80.0 if is_crack else 0.0,
+        'mean_candidate_strength': 75.0 if is_crack else 0.0,
+        'detection_score': score,
+        'primary_detection_channel': 'pale_surface' if is_crack else 'none',
+        'pale_surface_score': score,
+        'spatial_chain_score': 0.0,
+        'fragmentation_suppressed': False,
+        'threshold_used': 0,
+        'paper_method_used': True,
+        'paper_method_crack': False,
+        'paper_method_score': 0.0,
+        'paper_method_components': 0,
+        'shell_texture_score': 0.0,
+        'shell_texture_uniformity': 1.0,
+        'texture_anomaly_ratio': 0.0,
+        'texture_candidate_pixels': 0,
+        'thin_crack_score': 0.0,
+        'thin_crack_detected': False,
+        'image_quality_score': 0.8,
+        'image_sharpness': 300.0,
+        'image_detail_variance': 90.0,
+        'image_saturated_ratio': 0.0,
+        'image_glare_ratio': 0.0,
+        'image_dynamic_range': 60.0,
+        'requires_recapture': False,
+        'quality_message': 'Image quality is suitable for detection',
+        'egg_detected': True,
+        'egg_score': 5.0,
+        'egg_size': 'small',
+        'egg_size_confidence': 0.9,
+        'egg_area_ratio': 0.2,
+        'egg_width_pixels': 100.0,
+        'egg_length_pixels': 150.0,
+        'egg_width_ratio': 0.5,
+        'egg_length_ratio': 0.5,
+        'egg_size_score': 0.9,
+        'egg_size_memberships': {},
+        'crack_size': 'small' if is_crack else 'none',
+        'crack_size_confidence': 0.7 if is_crack else 0.0,
+        'crack_mask_b64': _encode_png_b64(crack_mask),
+        'crack_locations': [{'id': 1, 'bounding_box': [50, 40, 20, 80]}]
+        if is_crack else [],
+        'detection_iterations': 1 if is_crack else 0,
+        'search_iterations': 2,
+        'termination_reason': 'no_more_cracks',
+        'sample_count': 1,
+        'crack_votes': 1 if is_crack else 0,
+        'no_crack_votes': 0 if is_crack else 1,
+        'decision_consistency': 1.0,
+        'area_consistent': True,
+        'area_consistency': 1.0,
+        'area_mean_ratio': 0.001 if is_crack else 0.0,
+        'area_spread_ratio': 0.0,
+        'area_samples': [0.001] if is_crack else [],
+        '_internal_crack_mask': crack_mask.copy(),
+        '_internal_support_mask': support_mask.copy(),
+        '_internal_egg_contour': contour.copy(),
+    }
 
 
 class DetectorTests(unittest.TestCase):
@@ -418,6 +553,51 @@ class DetectorTests(unittest.TestCase):
         self.assertFalse(result['is_crack'], result)
         self.assertEqual(result['crack_votes'], 0, result)
         self.assertEqual(result['termination_reason'], 'multi_frame_disagreement')
+        DetectionResponse.model_validate(result)
+
+    def test_camera_accepts_strong_trace_with_weak_registered_support(self) -> None:
+        crack_mask = np.zeros((180, 140), dtype=np.uint8)
+        cv2.line(crack_mask, (66, 48), (76, 126), 255, 2, cv2.LINE_8)
+        support_mask = np.zeros_like(crack_mask)
+        cv2.line(support_mask, (67, 50), (77, 126), 255, 1, cv2.LINE_8)
+        empty_mask = np.zeros_like(crack_mask)
+        frames = {
+            b'strong': _fake_camera_result(
+                is_crack=True,
+                crack_mask=crack_mask,
+                support_mask=crack_mask,
+                score=0.82,
+            ),
+            b'weak': _fake_camera_result(
+                is_crack=False,
+                crack_mask=empty_mask,
+                support_mask=support_mask,
+                score=0.0,
+            ),
+            b'clean': _fake_camera_result(
+                is_crack=False,
+                crack_mask=empty_mask,
+                support_mask=empty_mask,
+                score=0.0,
+            ),
+        }
+
+        with patch.object(
+            detector_module,
+            'detect_camera_image_bytes',
+            side_effect=lambda frame, *args, **kwargs: frames[frame],
+        ):
+            result = detector_module.detect_camera_images_bytes(
+                [b'strong', b'weak', b'clean'],
+                cfg=self.config,
+            )
+
+        self.assertTrue(result['is_crack'], result)
+        self.assertEqual(result['sample_count'], 3, result)
+        self.assertEqual(result['crack_votes'], 2, result)
+        self.assertEqual(result['primary_detection_channel'], 'pale_surface')
+        self.assertIn('weak support', result['quality_message'])
+        self.assertNotIn('_internal_support_mask', result)
         DetectionResponse.model_validate(result)
 
     def test_clean_candled_egg_is_not_cracked(self) -> None:
@@ -588,6 +768,14 @@ class DetectorTests(unittest.TestCase):
         self.assertFalse(result['is_crack'], result)
         self.assertEqual(result['candidate_components'], 0)
 
+    def test_pale_smooth_shell_arc_is_not_a_crack(self) -> None:
+        result = detect_image_bytes(
+            _modified_candled_egg('pale_shell_arc'),
+            cfg=self.config,
+        )
+        self.assertFalse(result['is_crack'], result)
+        self.assertEqual(result['candidate_components'], 0)
+
     def test_pale_surface_fracture_is_detected(self) -> None:
         result = detect_image_bytes(
             _modified_candled_egg('pale_surface_crack'),
@@ -623,7 +811,52 @@ class DetectorTests(unittest.TestCase):
         steps = result['intermediate_steps']
         self.assertIn('perimeter_shell_zone', steps)
         self.assertIn('pale_surface_response', steps)
+        self.assertIn('pale_surface_weak_candidates', steps)
         self.assertIn('fused_crack_response', steps)
+
+    def test_sample_like_pale_branching_fracture_is_detected(self) -> None:
+        result = detect_image_bytes(
+            _modified_candled_egg('pale_branching_surface_crack'),
+            include_steps=True,
+            cfg=self.config,
+        )
+        self.assertTrue(result['is_crack'], result)
+        self.assertGreaterEqual(result['candidate_components'], 1, result)
+        self.assertTrue(result['crack_locations'], result)
+        self.assertGreater(result['contour_length'], 0.0, result)
+        self.assertGreater(result['detection_score'], 0.50, result)
+        crack_mask = cv2.imdecode(
+            np.frombuffer(
+                base64.b64decode(result['crack_mask_b64']),
+                dtype=np.uint8,
+            ),
+            cv2.IMREAD_GRAYSCALE,
+        )
+        self.assertIsNotNone(crack_mask)
+        reference = np.zeros_like(crack_mask)
+        for branch in (
+            np.array([[470, 180], [474, 225], [478, 270], [476, 315]], dtype=np.int32),
+            np.array([[476, 315], [440, 330], [405, 342], [365, 360]], dtype=np.int32),
+            np.array([[478, 270], [510, 292], [540, 325]], dtype=np.int32),
+        ):
+            cv2.polylines(reference, [branch], False, 255, 1, cv2.LINE_8)
+        tolerance = cv2.dilate(
+            crack_mask,
+            cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (13, 13)),
+        )
+        recall = cv2.countNonZero(cv2.bitwise_and(reference, tolerance)) \
+            / max(float(cv2.countNonZero(reference)), 1.0)
+        self.assertGreaterEqual(recall, 0.68, result)
+        self.assertIn(
+            result['primary_detection_channel'],
+            {'pale_surface', 'spatial_chain', 'component'},
+            result,
+        )
+        self.assertFalse(result['fragmentation_suppressed'], result)
+        steps = result['intermediate_steps']
+        self.assertIn('pale_surface_weak_candidates', steps)
+        self.assertIn('spatial_chain_candidates', steps)
+        DetectionResponse.model_validate(result)
 
     def test_broad_flashlight_glare_requests_recapture(self) -> None:
         with self.assertRaisesRegex(DetectionError, 'glare'):

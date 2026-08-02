@@ -20,9 +20,15 @@ class ApiConstants {
   static const String detectCameraMulti = '/detect/camera/multi';
   static const String focusScore = '/focus/score';
 
-  // History
+  // History (legacy JSON flat-file – kept for backward compat)
   static const String history = '/history';
   static String historyById(String id) => '/history/$id';
+
+  // Detections (SQLite + saved image files)
+  static const String detections = '/detections';
+  static String detectionById(String id) => '/detections/$id';
+  static String detectionOriginalImage(String id) => '/detections/$id/original';
+  static String detectionOverlayImage(String id) => '/detections/$id/overlay';
 
   // Reports
   static const String reportsExport = '/reports/export';

@@ -40,7 +40,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
     try {
       final response = await _api.dio.get(
-        ApiConstants.history,
+        ApiConstants.detections,
         queryParameters: {'limit': 1000},
       );
       final data = response.data as Map;

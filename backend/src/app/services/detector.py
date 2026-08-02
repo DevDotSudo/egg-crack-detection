@@ -187,9 +187,18 @@ def _scale_detection_config(
         'pale_surface_min_total_length',
         'pale_surface_min_group_span',
         'pale_surface_max_group_gap',
+        'pale_recovery_min_fragment_length',
+        'pale_recovery_min_fragment_span',
+        'pale_recovery_max_endpoint_gap',
+        'pale_recovery_anchor_min_length',
+        'pale_recovery_anchor_min_span',
+        'pale_recovery_anchor_max_endpoint_gap',
+        'pale_recovery_min_total_length',
+        'pale_recovery_min_network_span',
         'smooth_band_min_length',
         'smooth_band_min_thickness',
         'smooth_arc_min_length',
+        'smooth_short_arc_min_length',
         'min_component_span',
         'min_skeleton_length',
         'preferred_max_thickness',
@@ -698,8 +707,30 @@ def _select_coherent_paper_fragments(
             ):
                 qualifying_groups.append((group_span + group_area * 0.1, group))
         if qualifying_groups:
-            coherent_group = max(qualifying_groups, key=lambda item: item[0])[1]
-            selected_indices.update(coherent_group)
+            # Additional check: the coherent group must be linearly arranged.
+            # Compute transverse spread of group fragment centers relative to
+            # the group's principal axis — scattered speckle has a high ratio
+            # of transverse spread to longitudinal span whereas a crack is narrow.
+            best_group_score, best_group = max(
+                qualifying_groups, key=lambda item: item[0],
+            )
+            group_centers = np.asarray([
+                [fragments[index]['center_x'], fragments[index]['center_y']]
+                for index in best_group
+            ], dtype=np.float32)
+            gc = group_centers - group_centers.mean(axis=0)
+            cov = np.cov(gc, rowvar=False)
+            evals, evecs = np.linalg.eigh(cov)
+            principal = evecs[:, int(np.argmax(evals))]
+            transverse_axis = np.array([-principal[1], principal[0]])
+            transverse_proj = gc @ transverse_axis
+            t_spread = float(transverse_proj.max() - transverse_proj.min())
+            l_proj = gc @ principal
+            l_span = float(l_proj.max() - l_proj.min()) + 1.0
+            # Reject if transverse spread is more than 55% of longitudinal span
+            # (real cracks: ~10-25%; scattered speckle: 60-100%).
+            if t_spread / l_span <= 0.55:
+                selected_indices.update(best_group)
 
     if not selected_indices:
         return np.zeros_like(mask), []
@@ -839,7 +870,7 @@ def _paper_method_crack_detection(
         if area < 7 or area > egg_pixels * 0.012:
             continue
         span = float(np.hypot(w, h))
-        if span < 18.0:
+        if span < 28.0:
             continue
 
         component = np.where(labels[y:y + h, x:x + w] == index, 255, 0).astype(np.uint8)
@@ -858,9 +889,9 @@ def _paper_method_crack_detection(
         perimeter = float(cv2.arcLength(contour, False))
         density = area / max(float(w * h), 1.0)
 
-        if elongation < 2.5 and perimeter < 32.0:
+        if elongation < 3.2 and perimeter < 40.0:
             continue
-        if thickness > 8.0 or density > 0.58:
+        if thickness > 7.0 or density > 0.55:
             continue
 
         region = accepted_mask[y:y + h, x:x + w]
@@ -1442,6 +1473,8 @@ def _is_local_hairline_component(
 ) -> bool:
     metrics = component.metrics
     return bool(
+        not _is_smooth_arc_artifact(metrics, cfg)
+        and
         metrics['skeleton_length'] >= cfg.local_hairline_min_length
         and metrics['span'] >= cfg.local_hairline_min_span
         and metrics['average_thickness'] <= cfg.local_hairline_max_thickness
@@ -1961,6 +1994,25 @@ def _connect_small_gaps(binary: np.ndarray, inner_mask: np.ndarray) -> np.ndarra
     return cv2.bitwise_and(connected, connected, mask=inner_mask)
 
 
+def _grow_support_from_seeds(
+    seeds: np.ndarray,
+    support: np.ndarray,
+    inner_mask: np.ndarray,
+    radius: int,
+) -> np.ndarray:
+    """Grow weak crack support only when it touches a stronger seed."""
+    accepted = cv2.bitwise_and(seeds, seeds, mask=inner_mask)
+    support = cv2.bitwise_and(support, support, mask=inner_mask)
+    kernel = cv2.getStructuringElement(cv2.MORPH_CROSS, (3, 3))
+    for _ in range(max(0, radius)):
+        grown = cv2.bitwise_and(cv2.dilate(accepted, kernel), support)
+        updated = cv2.bitwise_or(accepted, grown)
+        if cv2.countNonZero(updated) == cv2.countNonZero(accepted):
+            break
+        accepted = updated
+    return cv2.bitwise_and(accepted, accepted, mask=inner_mask)
+
+
 def _skeletonize(binary: np.ndarray) -> np.ndarray:
     points = cv2.findNonZero(binary)
     output = np.zeros_like(binary)
@@ -2276,6 +2328,33 @@ def _component_score(metrics: dict[str, float], cfg: DetectionConfig) -> float:
     return score
 
 
+def _is_smooth_arc_artifact(
+    metrics: dict[str, float],
+    cfg: DetectionConfig,
+) -> bool:
+    """Reject short smooth shell arcs while keeping branched fracture traces."""
+    if metrics.get('branchpoints', 0.0) > 0 or metrics.get('endpoints', 0.0) > 2:
+        return False
+    long_smooth_arc = (
+        metrics['skeleton_length'] >= cfg.smooth_arc_min_length
+        and metrics['ellipse_axis_ratio'] <= cfg.smooth_arc_max_axis_ratio
+        and metrics['ellipse_residual'] <= cfg.smooth_arc_max_residual
+        and metrics['ellipse_coverage'] >= cfg.smooth_arc_min_coverage
+        and metrics['endpoint_chord_ratio'] <= cfg.smooth_arc_max_chord_ratio
+    )
+    short_smooth_arc = (
+        metrics['skeleton_length'] >= cfg.smooth_short_arc_min_length
+        and metrics['ellipse_axis_ratio'] <= 8.0
+        and metrics['ellipse_residual'] <= cfg.smooth_short_arc_max_residual
+        and metrics['ellipse_coverage'] >= cfg.smooth_arc_min_coverage * 0.35
+        and metrics['endpoint_chord_ratio']
+        <= cfg.smooth_short_arc_max_chord_ratio
+        and metrics['axis_deviation_ratio']
+        >= cfg.smooth_short_arc_min_axis_deviation
+    )
+    return long_smooth_arc or short_smooth_arc
+
+
 def _has_strict_line_geometry(
     metrics: dict[str, float],
     cfg: DetectionConfig,
@@ -2398,8 +2477,8 @@ def _is_coherent_paper_line_group(
     return bool(
         total_length >= 90.0
         and span >= 65.0
-        and elongation >= 3.0
-        and average_thickness <= 8.0
+        and elongation >= 4.5
+        and average_thickness <= 7.0
     )
 
 
@@ -2433,16 +2512,7 @@ def _is_crack_seed(
         and metrics['average_thickness'] >= cfg.smooth_band_min_thickness
         and metrics['branchpoints'] >= cfg.smooth_band_min_branchpoints
     )
-    smooth_ellipse_arc = (
-        metrics['skeleton_length'] >= cfg.smooth_arc_min_length
-        and metrics['branchpoints'] == 0
-        and metrics['endpoints'] <= 2
-        and metrics['ellipse_axis_ratio'] <= cfg.smooth_arc_max_axis_ratio
-        and metrics['ellipse_residual'] <= cfg.smooth_arc_max_residual
-        and metrics['ellipse_coverage'] >= cfg.smooth_arc_min_coverage
-        and metrics['endpoint_chord_ratio'] <= cfg.smooth_arc_max_chord_ratio
-    )
-    if smooth_broad_band or smooth_ellipse_arc:
+    if smooth_broad_band or _is_smooth_arc_artifact(metrics, cfg):
         return False
 
     compact_loop = (
@@ -2500,15 +2570,7 @@ def _is_crack_support(metrics: dict[str, float], cfg: DetectionConfig) -> bool:
         and metrics['branchpoints'] >= cfg.smooth_band_min_branchpoints
     ):
         return False
-    if (
-        metrics['skeleton_length'] >= cfg.smooth_arc_min_length
-        and metrics['branchpoints'] == 0
-        and metrics['endpoints'] <= 2
-        and metrics['ellipse_axis_ratio'] <= cfg.smooth_arc_max_axis_ratio
-        and metrics['ellipse_residual'] <= cfg.smooth_arc_max_residual
-        and metrics['ellipse_coverage'] >= cfg.smooth_arc_min_coverage
-        and metrics['endpoint_chord_ratio'] <= cfg.smooth_arc_max_chord_ratio
-    ):
+    if _is_smooth_arc_artifact(metrics, cfg):
         return False
     if metrics['density'] > 0.78 and metrics['elongation'] < 2.2:
         return False
@@ -3035,12 +3097,257 @@ def _dominant_spatial_chain(
     return max(qualifying, key=lambda item: item[0])[1]
 
 
+def _pale_global_point(component: CrackComponent, prefix: str) -> np.ndarray:
+    return np.array([
+        component.x + component.metrics[f'{prefix}_x'],
+        component.y + component.metrics[f'{prefix}_y'],
+    ], dtype=np.float32)
+
+
+def _pale_link_geometry(
+    left: CrackComponent,
+    right: CrackComponent,
+) -> tuple[float, float, float]:
+    left_axis = np.array([
+        left.metrics['axis_x'], left.metrics['axis_y'],
+    ], dtype=np.float32)
+    right_axis = np.array([
+        right.metrics['axis_x'], right.metrics['axis_y'],
+    ], dtype=np.float32)
+    left_endpoints = (
+        _pale_global_point(left, 'endpoint_a'),
+        _pale_global_point(left, 'endpoint_b'),
+    )
+    right_endpoints = (
+        _pale_global_point(right, 'endpoint_a'),
+        _pale_global_point(right, 'endpoint_b'),
+    )
+    endpoint_gap = min(
+        float(np.linalg.norm(left_point - right_point))
+        for left_point in left_endpoints
+        for right_point in right_endpoints
+    )
+    axis_alignment = abs(float(np.dot(left_axis, right_axis)))
+    connector = _pale_global_point(right, 'center') - _pale_global_point(
+        left, 'center',
+    )
+    connector_length = float(np.linalg.norm(connector))
+    if connector_length <= 1e-6:
+        return endpoint_gap, axis_alignment, 0.0
+    connector /= connector_length
+    connector_alignment = max(
+        abs(float(np.dot(connector, left_axis))),
+        abs(float(np.dot(connector, right_axis))),
+    )
+    return endpoint_gap, axis_alignment, connector_alignment
+
+
+def _recover_pale_surface_network(
+    components: list[CrackComponent],
+    egg_mask: np.ndarray,
+    response: np.ndarray,
+    strong: np.ndarray,
+    rim_band: np.ndarray,
+    cfg: DetectionConfig,
+) -> list[CrackComponent]:
+    if not components:
+        return []
+    shell_depth = cv2.distanceTransform(egg_mask, cv2.DIST_L2, 5)
+    minimum_depth = (
+        cfg.geometry_reference_egg_minor_axis
+        * cfg.geometry_scale
+        * cfg.pale_recovery_min_shell_depth_ratio
+    )
+    eligible: list[CrackComponent] = []
+    for component in components:
+        skeleton_y, skeleton_x = np.where(component.skeleton > 0)
+        if skeleton_x.size == 0:
+            continue
+        global_x = skeleton_x + component.x
+        global_y = skeleton_y + component.y
+        depth_values = shell_depth[global_y, global_x]
+        shell_depth_p10 = float(np.percentile(depth_values, 10))
+        metrics = component.metrics
+        metrics['shell_depth_p10'] = shell_depth_p10
+        if (
+            _is_smooth_arc_artifact(metrics, cfg)
+            or metrics['skeleton_length']
+            < cfg.pale_recovery_min_fragment_length
+            or metrics['span'] < cfg.pale_recovery_min_fragment_span
+            or metrics['strength_p90'] < cfg.pale_recovery_min_strength_p90
+            or metrics['branch_ratio'] > cfg.pale_recovery_max_branch_ratio
+            or metrics['axis_deviation_ratio']
+            > cfg.pale_recovery_max_axis_deviation
+            or metrics['rim_overlap'] >= cfg.rim_overlap_reject_ratio
+            or shell_depth_p10 < minimum_depth
+        ):
+            continue
+        eligible.append(component)
+
+    if not eligible:
+        return []
+    eligible.sort(
+        key=lambda component: (
+            component.metrics['skeleton_length']
+            * component.metrics['strength_p90']
+        ),
+        reverse=True,
+    )
+    eligible = eligible[:max(1, cfg.pale_recovery_candidate_limit)]
+    anchor_min_thickness = (
+        cfg.pale_surface_max_average_thickness
+        * cfg.pale_recovery_anchor_min_thickness_ratio
+    )
+    anchor_indices = [
+        index
+        for index, component in enumerate(eligible)
+        if (
+            component.metrics['skeleton_length']
+            >= cfg.pale_recovery_anchor_min_length
+            and component.metrics['span'] >= cfg.pale_recovery_anchor_min_span
+            and component.metrics['average_thickness'] >= anchor_min_thickness
+        )
+    ]
+    if not anchor_indices:
+        return []
+
+    anchor_adjacency = {index: set() for index in anchor_indices}
+    for position, left_index in enumerate(anchor_indices):
+        for right_index in anchor_indices[position + 1:]:
+            gap, axis_alignment, connector_alignment = _pale_link_geometry(
+                eligible[left_index], eligible[right_index],
+            )
+            if (
+                gap <= cfg.pale_recovery_anchor_max_endpoint_gap
+                and connector_alignment
+                >= cfg.pale_recovery_min_connector_alignment
+                and (
+                    axis_alignment >= cfg.pale_recovery_min_axis_alignment
+                    or connector_alignment >= 0.90
+                )
+            ):
+                anchor_adjacency[left_index].add(right_index)
+                anchor_adjacency[right_index].add(left_index)
+
+    anchor_groups: list[set[int]] = []
+    visited: set[int] = set()
+    for start in anchor_indices:
+        if start in visited:
+            continue
+        group: set[int] = set()
+        stack = [start]
+        visited.add(start)
+        while stack:
+            current = stack.pop()
+            group.add(current)
+            for neighbor in anchor_adjacency[current]:
+                if neighbor not in visited:
+                    visited.add(neighbor)
+                    stack.append(neighbor)
+        anchor_groups.append(group)
+
+    qualifying: list[tuple[float, list[CrackComponent]]] = []
+    for anchor_group in anchor_groups:
+        selected = set(anchor_group)
+        for candidate_index, candidate_component in enumerate(eligible):
+            if candidate_index in selected:
+                continue
+            for anchor_index in anchor_group:
+                gap, axis_alignment, connector_alignment = _pale_link_geometry(
+                    eligible[anchor_index], candidate_component,
+                )
+                if (
+                    gap <= cfg.pale_recovery_max_endpoint_gap
+                    and connector_alignment
+                    >= cfg.pale_recovery_min_connector_alignment
+                    and (
+                        axis_alignment >= cfg.pale_recovery_min_axis_alignment
+                        or connector_alignment >= 0.90
+                    )
+                ):
+                    selected.add(candidate_index)
+                    break
+
+        group = [eligible[index] for index in sorted(selected)]
+        total_length = float(sum(
+            component.metrics['skeleton_length'] for component in group
+        ))
+        if total_length < cfg.pale_recovery_min_total_length:
+            continue
+        global_points: list[np.ndarray] = []
+        for component in group:
+            ys, xs = np.where(component.skeleton > 0)
+            if xs.size:
+                global_points.append(np.column_stack((
+                    xs + component.x,
+                    ys + component.y,
+                )).astype(np.float32))
+        if not global_points:
+            continue
+        points = np.vstack(global_points)
+        width = float(points[:, 0].max() - points[:, 0].min() + 1.0)
+        height = float(points[:, 1].max() - points[:, 1].min() + 1.0)
+        network_span = float(np.hypot(width, height))
+        if network_span < cfg.pale_recovery_min_network_span:
+            continue
+        mean_strength = float(np.mean([
+            component.metrics['strength_p90'] for component in group
+        ]))
+        qualifying.append((
+            total_length + network_span + mean_strength * 0.25,
+            group,
+        ))
+
+    if not qualifying:
+        return []
+    selected_group = max(qualifying, key=lambda item: item[0])[1]
+    recovered: list[CrackComponent] = []
+    for component in selected_group:
+        skeleton_mask = component.skeleton.copy()
+        metrics, recovered_skeleton = _component_metrics(
+            skeleton_mask,
+            response[
+                component.y:component.y + skeleton_mask.shape[0],
+                component.x:component.x + skeleton_mask.shape[1],
+            ],
+            strong[
+                component.y:component.y + skeleton_mask.shape[0],
+                component.x:component.x + skeleton_mask.shape[1],
+            ],
+            rim_band[
+                component.y:component.y + skeleton_mask.shape[0],
+                component.x:component.x + skeleton_mask.shape[1],
+            ],
+        )
+        if not metrics:
+            continue
+        metrics['score'] = max(
+            _component_score(metrics, cfg),
+            component.metrics.get('score', 0.0),
+        )
+        metrics['support_pixels'] = component.metrics['pixels']
+        metrics['support_average_thickness'] = component.metrics[
+            'average_thickness'
+        ]
+        metrics['shell_depth_p10'] = component.metrics['shell_depth_p10']
+        metrics['topology_recovered'] = 1.0
+        recovered.append(CrackComponent(
+            component.x,
+            component.y,
+            skeleton_mask,
+            recovered_skeleton,
+            metrics,
+            'pale_surface',
+        ))
+    return recovered
+
 def _pale_surface_crack_components(
     image: np.ndarray,
+    egg_mask: np.ndarray,
     inner_mask: np.ndarray,
     rim_band: np.ndarray,
     cfg: DetectionConfig,
-) -> tuple[list[CrackComponent], np.ndarray, np.ndarray]:
+) -> tuple[list[CrackComponent], np.ndarray, np.ndarray, np.ndarray]:
     """Detect whitish shell fractures that appear as pale low-saturation ridges."""
     lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
@@ -3058,20 +3365,92 @@ def _pale_surface_crack_components(
         255,
     ).astype(np.uint8)
     pale_score = cv2.bitwise_and(pale_score, pale_score, mask=inner_mask)
-    response, _ = _directional_tophat_response(pale_score, inner_mask, cfg)
+    dark_ridge, bright_ridge = _directional_tophat_response(
+        pale_score, inner_mask, cfg,
+    )
+    response = cv2.max(dark_ridge, bright_ridge)
     values = response[inner_mask > 0]
     if values.size == 0:
-        return [], response, np.zeros_like(inner_mask)
+        empty = np.zeros_like(inner_mask)
+        return [], response, empty, empty
 
-    threshold = int(max(
+    strong_threshold = int(max(
         cfg.pale_surface_min_threshold,
         np.percentile(values, cfg.pale_surface_percentile),
     ))
-    strong = np.where(
-        (response >= threshold) & (inner_mask > 0), 255, 0,
+    weak_threshold = int(max(
+        cfg.pale_surface_min_weak_threshold,
+        np.percentile(values, cfg.pale_surface_weak_percentile),
+        strong_threshold * 0.42,
+    ))
+    weak_threshold = min(weak_threshold, max(1, strong_threshold - 1))
+    weak = np.where(
+        (response >= weak_threshold) & (inner_mask > 0), 255, 0,
     ).astype(np.uint8)
-    count, labels, stats, _ = cv2.connectedComponentsWithStats(strong, 8)
+    strong = np.where(
+        (response >= strong_threshold) & (inner_mask > 0), 255, 0,
+    ).astype(np.uint8)
+    weak = _connect_small_gaps(weak, inner_mask)
+    strong = _connect_small_gaps(strong, inner_mask)
+    candidate = _grow_support_from_seeds(
+        strong, weak, inner_mask, cfg.pale_surface_support_radius,
+    )
+
+    def is_fragment(metrics: dict[str, float]) -> bool:
+        return bool(
+            not _is_smooth_arc_artifact(metrics, cfg)
+            and cfg.pale_surface_min_skeleton_length
+            <= metrics['skeleton_length']
+            <= cfg.pale_surface_max_skeleton_length
+            and metrics['average_thickness']
+            <= cfg.pale_surface_max_average_thickness
+            and metrics['density'] <= cfg.pale_surface_max_density
+            and metrics['branch_ratio'] <= cfg.pale_surface_max_branch_ratio
+            and metrics['extent_ratio'] >= cfg.pale_surface_min_extent_ratio
+            and metrics['axis_deviation_ratio']
+            <= cfg.pale_surface_max_axis_deviation
+            and metrics['strength_p90'] >= cfg.pale_surface_min_strength_p90
+            and metrics['rim_overlap'] < cfg.rim_overlap_reject_ratio
+        )
+
+    def is_branch_network(metrics: dict[str, float]) -> bool:
+        if _is_smooth_arc_artifact(metrics, cfg):
+            return False
+        branch_or_bend = (
+            metrics['branchpoints'] >= 1
+            or metrics['endpoints'] >= 3
+            or metrics['axis_deviation_ratio']
+            > cfg.pale_surface_max_axis_deviation
+        )
+        return bool(
+            metrics['skeleton_length']
+            >= cfg.pale_surface_min_total_length
+            * cfg.pale_surface_branch_min_length_ratio
+            and metrics['span']
+            >= cfg.pale_surface_min_group_span
+            * cfg.pale_surface_branch_min_span_ratio
+            and metrics['average_thickness']
+            <= cfg.pale_surface_max_average_thickness * 1.20
+            and metrics['density'] <= cfg.pale_surface_branch_max_density
+            and metrics['branch_ratio']
+            <= cfg.pale_surface_max_branch_ratio * 1.65
+            and metrics['extent_ratio'] >= 0.42
+            and metrics['axis_deviation_ratio']
+            <= cfg.pale_surface_branch_max_axis_deviation
+            and metrics['strength_p90']
+            >= cfg.pale_surface_min_strength_p90
+            * cfg.pale_surface_branch_min_strength_ratio
+            and metrics['rim_overlap'] < cfg.rim_overlap_reject_ratio
+            and (
+                branch_or_bend
+                or metrics['elongation'] >= 2.0
+            )
+        )
+
+    count, labels, stats, _ = cv2.connectedComponentsWithStats(candidate, 8)
+    raw_components: list[CrackComponent] = []
     components: list[CrackComponent] = []
+    branch_components: list[CrackComponent] = []
     for index in range(1, count):
         pixels = int(stats[index, cv2.CC_STAT_AREA])
         if pixels < cfg.pale_surface_min_pixels:
@@ -3092,27 +3471,42 @@ def _pale_surface_crack_components(
         if not metrics:
             continue
         metrics['score'] = _component_score(metrics, cfg)
-        if not (
-            cfg.pale_surface_min_skeleton_length
-            <= metrics['skeleton_length']
-            <= cfg.pale_surface_max_skeleton_length
-            and metrics['average_thickness']
-            <= cfg.pale_surface_max_average_thickness
-            and metrics['density'] <= cfg.pale_surface_max_density
-            and metrics['branch_ratio'] <= cfg.pale_surface_max_branch_ratio
-            and metrics['extent_ratio'] >= cfg.pale_surface_min_extent_ratio
-            and metrics['axis_deviation_ratio']
-            <= cfg.pale_surface_max_axis_deviation
-            and metrics['strength_p90'] >= cfg.pale_surface_min_strength_p90
-            and metrics['rim_overlap'] < cfg.rim_overlap_reject_ratio
-        ):
-            continue
-        components.append(CrackComponent(
+        component = CrackComponent(
             x, y, component_mask, skeleton, metrics, 'pale_surface',
-        ))
+        )
+        raw_components.append(component)
+        fragment = is_fragment(metrics)
+        branch = is_branch_network(metrics)
+        if not fragment and not branch:
+            continue
+        components.append(component)
+        if branch:
+            branch_components.append(component)
 
+    recovered_components = _recover_pale_surface_network(
+        raw_components,
+        egg_mask,
+        response,
+        strong,
+        rim_band,
+        cfg,
+    )
+    if recovered_components:
+        return recovered_components, response, weak, strong
+    if branch_components:
+        # Guard: require meaningful individual length+span so a single thick
+        # speckle blob can't trigger a crack verdict on its own.
+        strong_branches = [
+            c for c in branch_components
+            if c.metrics['skeleton_length'] >= cfg.pale_surface_min_skeleton_length * 2.5
+            and c.metrics['span'] >= cfg.pale_surface_min_group_span * 0.65
+            and c.metrics['strength_p90'] >= cfg.pale_surface_min_strength_p90
+            and c.metrics['elongation'] >= 2.0
+        ]
+        if strong_branches:
+            return strong_branches, response, weak, strong
     if len(components) < cfg.pale_surface_min_components:
-        return [], response, strong
+        return [], response, weak, strong
 
     def global_point(component: CrackComponent, prefix: str) -> np.ndarray:
         return np.array([
@@ -3127,9 +3521,6 @@ def _pale_surface_crack_components(
         right_axis = np.array([
             right.metrics['axis_x'], right.metrics['axis_y'],
         ], dtype=np.float32)
-        axis_alignment = abs(float(np.dot(left_axis, right_axis)))
-        if axis_alignment < cfg.pale_surface_min_axis_alignment:
-            return False
 
         left_endpoints = (
             global_point(left, 'endpoint_a'),
@@ -3142,9 +3533,17 @@ def _pale_surface_crack_components(
         endpoint_gap = min(
             float(np.linalg.norm(left_point - right_point))
             for left_point in left_endpoints
-            for right_point in right_endpoints
+                for right_point in right_endpoints
         )
         if endpoint_gap > cfg.pale_surface_max_group_gap:
+            return False
+
+        axis_alignment = abs(float(np.dot(left_axis, right_axis)))
+        branch_join = endpoint_gap <= cfg.pale_surface_max_group_gap * 0.48
+        if (
+            axis_alignment < cfg.pale_surface_min_axis_alignment
+            and not branch_join
+        ):
             return False
 
         connector = global_point(right, 'center') - global_point(left, 'center')
@@ -3162,7 +3561,10 @@ def _pale_surface_crack_components(
             left_thickness, right_thickness,
         )
         return bool(
-            connector_alignment >= cfg.pale_surface_min_connector_alignment
+            (
+                connector_alignment >= 0.45
+                or branch_join
+            )
             and thickness_ratio <= cfg.pale_surface_max_thickness_ratio
         )
 
@@ -3197,19 +3599,76 @@ def _pale_surface_crack_components(
         total_length = sum(
             component.metrics['skeleton_length'] for component in group
         )
+        weighted_thickness = sum(
+            component.metrics['average_thickness']
+            * component.metrics['skeleton_length']
+            for component in group
+        )
+        weighted_density = sum(
+            component.metrics['density']
+            * component.metrics['skeleton_length']
+            for component in group
+        )
+        mean_strength = float(np.mean([
+            component.metrics['strength_p90'] for component in group
+        ]))
         min_x = min(component.x for component in group)
         min_y = min(component.y for component in group)
         max_x = max(component.x + component.mask.shape[1] for component in group)
         max_y = max(component.y + component.mask.shape[0] for component in group)
         span = float(np.hypot(max_x - min_x, max_y - min_y))
+        average_thickness = weighted_thickness / max(total_length, 1.0)
+        average_density = weighted_density / max(total_length, 1.0)
+        branch_group = bool(
+            total_length
+            >= cfg.pale_surface_min_total_length
+            * cfg.pale_surface_branch_min_length_ratio
+            and span
+            >= cfg.pale_surface_min_group_span
+            * cfg.pale_surface_branch_min_span_ratio
+            and average_thickness
+            <= cfg.pale_surface_max_average_thickness * 1.20
+            and average_density <= cfg.pale_surface_branch_max_density
+            and mean_strength
+            >= cfg.pale_surface_min_strength_p90
+            * cfg.pale_surface_branch_min_strength_ratio
+        )
         if (
-            total_length >= cfg.pale_surface_min_total_length
-            and span >= cfg.pale_surface_min_group_span
+            (
+                total_length >= cfg.pale_surface_min_total_length
+                and span >= cfg.pale_surface_min_group_span
+            )
+            or branch_group
         ):
-            qualifying.append((total_length + span, group))
+            # Linearity guard: PCA elongation of group component centers.
+            # A real crack yields a long narrow cluster; scattered speckle
+            # yields a roughly square blob (elongation ~1.0-1.4).
+            group_centers_x = [
+                component.x + component.mask.shape[1] / 2.0
+                for component in group
+            ]
+            group_centers_y = [
+                component.y + component.mask.shape[0] / 2.0
+                for component in group
+            ]
+            if len(group_centers_x) >= 2:
+                pts = np.column_stack(
+                    (group_centers_x, group_centers_y)
+                ).astype(np.float32)
+                pt_c = pts - pts.mean(axis=0)
+                cov_g = np.cov(pt_c, rowvar=False)
+                evals_g = np.sort(np.linalg.eigvalsh(cov_g))
+                group_elongation = float(
+                    np.sqrt(max(evals_g[-1], 1e-6) / max(evals_g[0], 1e-6))
+                )
+            else:
+                group_elongation = 99.0  # single fragment — let it through
+            if group_elongation >= 1.8:
+                qualifying.append((total_length + span, group))
+
 
     if not qualifying:
-        return [], response, strong
+        return [], response, weak, strong
 
     accepted: list[CrackComponent] = []
     for _, group in sorted(qualifying, key=lambda item: item[0], reverse=True):
@@ -3226,7 +3685,7 @@ def _pale_surface_crack_components(
             accepted.append(merged)
         else:
             accepted.extend(group)
-    return accepted, response, strong
+    return accepted, response, weak, strong
 
 
 def _overlay_line_sizes(image: np.ndarray) -> tuple[int, int]:
@@ -3285,117 +3744,253 @@ def _triangle_membership(value: float, left: float, peak: float, right: float) -
     return float((right - value) / max(right - peak, 1e-6))
 
 
+def _trapezoid_membership(value: float, a: float, b: float, c: float, d: float) -> float:
+    """Trapezoid MF: rises a→b, flat b→c, falls c→d. Returns membership in [0, 1]."""
+    if value <= a or value >= d:
+        return 0.0
+    if b <= value <= c:
+        return 1.0
+    if value < b:
+        return float((value - a) / max(b - a, 1e-9))
+    return float((d - value) / max(d - c, 1e-9))
+
+
+# ---------------------------------------------------------------------------
+# Mamdani FIS engine
+# ---------------------------------------------------------------------------
+# Output universe for all Mamdani systems: 1000 evenly spaced points in [0, 1].
+_MAMDANI_N = 1000
+_MAMDANI_U = np.linspace(0.0, 1.0, _MAMDANI_N)
+
+# Output MFs shared by egg-size and crack-size classifiers.
+# Each is a trapezoid [a, b, c, d] evaluated on _MAMDANI_U.
+_OUT_MF_SMALL = np.array([_trapezoid_membership(u, 0.00, 0.00, 0.25, 0.45) for u in _MAMDANI_U])
+_OUT_MF_MEDIUM = np.array([_trapezoid_membership(u, 0.30, 0.45, 0.55, 0.70) for u in _MAMDANI_U])
+_OUT_MF_LARGE = np.array([_trapezoid_membership(u, 0.55, 0.75, 1.00, 1.00) for u in _MAMDANI_U])
+
+_OUTPUT_MFS: dict[str, np.ndarray] = {
+    'small': _OUT_MF_SMALL,
+    'medium': _OUT_MF_MEDIUM,
+    'large': _OUT_MF_LARGE,
+}
+
+
+def _mamdani_infer(
+    rules: list[tuple[float, str]],
+) -> tuple[str, float, dict[str, float], float]:
+    """Mamdani inference: aggregate clipped output MFs, CoA defuzzify.
+
+    Parameters
+    ----------
+    rules:
+        List of (firing_strength, consequent_label) pairs.
+        firing_strength is already computed by the caller (min of antecedents).
+
+    Returns
+    -------
+    (label, confidence, memberships_dict, crisp_score)
+        label            – winning class ('small' | 'medium' | 'large')
+        confidence       – normalized area fraction of winning class in [0, 1]
+        memberships_dict – {label: normalized_area} for all three classes
+        crisp_score      – CoA value in [0, 1]
+    """
+    # Aggregate: pointwise max of all clipped output MFs.
+    aggregated = np.zeros(_MAMDANI_N)
+    for alpha, label in rules:
+        if alpha > 0.0:
+            clipped = np.minimum(_OUTPUT_MFS[label], alpha)
+            aggregated = np.maximum(aggregated, clipped)
+
+    # Centroid of Area (CoA) defuzzification.
+    denom = float(aggregated.sum())
+    if denom < 1e-9:
+        # Degenerate: no rules fired — fall back to label from first dominant rule.
+        dominant = max(rules, key=lambda r: r[0], default=(0.0, 'medium'))
+        label = dominant[1]
+        memberships = {k: (1.0 if k == label else 0.0) for k in ('small', 'medium', 'large')}
+        score = {'small': 0.20, 'medium': 0.55, 'large': 0.90}[label]
+        return label, 1.0, memberships, score
+
+    crisp = float((_MAMDANI_U * aggregated).sum() / denom)
+
+    # Measure the area each output MF contributes to the aggregated curve.
+    areas: dict[str, float] = {}
+    for lbl, mf in _OUTPUT_MFS.items():
+        contribution = np.minimum(mf, aggregated)
+        areas[lbl] = float(contribution.sum())
+
+    total_area = sum(areas.values())
+    if total_area < 1e-9:
+        total_area = 1.0
+    norm_areas = {lbl: areas[lbl] / total_area for lbl in areas}
+
+    label = max(norm_areas, key=norm_areas.__getitem__)
+    confidence = round(float(np.clip(norm_areas[label], 0.0, 1.0)), 4)
+    memberships = {k: round(float(np.clip(v, 0.0, 1.0)), 4) for k, v in norm_areas.items()}
+    crisp_score = round(float(np.clip(crisp, 0.0, 1.0)), 4)
+    return label, confidence, memberships, crisp_score
+
+
+# ---------------------------------------------------------------------------
+# Egg-size Mamdani FIS
+# ---------------------------------------------------------------------------
+# Input MF boundaries (ratio space, calibrated for fixed 6-inch camera).
+# All values are normalised pixel ratios that match the existing DetectionConfig
+# anchor points.  Corresponding physical mm at that camera distance are shown
+# in comments for reference (frame width ≈ 100 mm).
+#
+# Width ratio  (minor axis / image_width):
+#   Small  trap [0.00, 0.00, 0.24, 0.35]  ≈  0 – 35 mm
+#   Medium trap [0.28, 0.38, 0.48, 0.58]  ≈  28 – 58 mm  (peak ≈ 43 mm)
+#   Large  trap [0.50, 0.62, 1.00, 1.00]  ≈  > 50 mm
+#
+# Area ratio   (contour area / image_area):
+#   Small  trap [0.00, 0.00, 0.12, 0.22]
+#   Medium trap [0.15, 0.24, 0.32, 0.42]
+#   Large  trap [0.35, 0.46, 1.00, 1.00]
+#
+# Length ratio (major axis / image_height):
+#   Small  trap [0.00, 0.00, 0.36, 0.50]
+#   Medium trap [0.42, 0.52, 0.62, 0.72]
+#   Large  trap [0.66, 0.78, 1.00, 1.00]
+
+
+def _egg_size_fuzzify(
+    area: float,
+    width: float,
+    length: float,
+) -> dict[str, dict[str, float]]:
+    """Fuzzify the three egg-size inputs. Returns {variable: {label: mu}}."""
+    return {
+        'area': {
+            'small':  _trapezoid_membership(area,  0.00, 0.00, 0.12, 0.22),
+            'medium': _trapezoid_membership(area,  0.15, 0.24, 0.32, 0.42),
+            'large':  _trapezoid_membership(area,  0.35, 0.46, 1.00, 1.00),
+        },
+        'width': {
+            'small':  _trapezoid_membership(width, 0.00, 0.00, 0.24, 0.35),
+            'medium': _trapezoid_membership(width, 0.28, 0.38, 0.48, 0.58),
+            'large':  _trapezoid_membership(width, 0.50, 0.62, 1.00, 1.00),
+        },
+        'length': {
+            'small':  _trapezoid_membership(length, 0.00, 0.00, 0.36, 0.50),
+            'medium': _trapezoid_membership(length, 0.42, 0.52, 0.62, 0.72),
+            'large':  _trapezoid_membership(length, 0.66, 0.78, 1.00, 1.00),
+        },
+    }
+
+
 def _fuzzy_egg_size(
     egg_area_ratio: float,
     cfg: DetectionConfig,
     egg_width_ratio: float | None = None,
     egg_length_ratio: float | None = None,
 ) -> tuple[str, float, dict[str, float], float]:
-    feature_memberships: list[tuple[float, dict[str, float]]] = [
-        (
-            0.70,
-            {
-                'small': _falling_membership(
-                    egg_area_ratio,
-                    cfg.egg_size_small_full_ratio,
-                    cfg.egg_size_small_empty_ratio,
-                ),
-                'medium': _triangle_membership(
-                    egg_area_ratio,
-                    cfg.egg_size_medium_left_ratio,
-                    cfg.egg_size_medium_peak_ratio,
-                    cfg.egg_size_medium_right_ratio,
-                ),
-                'large': _rising_membership(
-                    egg_area_ratio,
-                    cfg.egg_size_large_empty_ratio,
-                    cfg.egg_size_large_full_ratio,
-                ),
-            },
-        ),
+    """Mamdani FIS for egg size classification.
+
+    Inputs (all normalised ratios, fixed 6-inch camera):
+        egg_area_ratio  – contour area / image area          (primary, weight ≈ 70 %)
+        egg_width_ratio – minor axis / image width           (secondary)
+        egg_length_ratio – major axis / image height         (secondary)
+
+    Rules (12):
+        R1-R3   single-input area rules
+        R4-R6   single-input width rules  (only when width available)
+        R7-R9   single-input length rules (only when length available)
+        R10-R12 conjunctive reinforcing rules (AND = min)
+
+    Defuzzification: Centroid of Area on output universe [0, 1].
+    """
+    width = egg_width_ratio if egg_width_ratio is not None else egg_area_ratio
+    length = egg_length_ratio if egg_length_ratio is not None else egg_area_ratio
+
+    mu = _egg_size_fuzzify(egg_area_ratio, width, length)
+    a = mu['area']
+    w = mu['width']
+    ln = mu['length']
+
+    # Build rule list: (firing_strength, consequent_label)
+    rules: list[tuple[float, str]] = [
+        # R1-R3: area alone
+        (a['small'],  'small'),
+        (a['medium'], 'medium'),
+        (a['large'],  'large'),
+        # R4-R6: width alone
+        (w['small'],  'small'),
+        (w['medium'], 'medium'),
+        (w['large'],  'large'),
+        # R7-R9: length alone
+        (ln['small'],  'small'),
+        (ln['medium'], 'medium'),
+        (ln['large'],  'large'),
+        # R10-R12: conjunctive reinforcing (AND = min)
+        (min(a['small'],  w['small']),  'small'),
+        (min(a['medium'], w['medium']), 'medium'),
+        (min(a['large'],  w['large']),  'large'),
     ]
 
-    if egg_width_ratio is not None:
-        feature_memberships.append((
-            0.15,
-            {
-                'small': _falling_membership(
-                    egg_width_ratio,
-                    cfg.egg_width_small_full_ratio,
-                    cfg.egg_width_small_empty_ratio,
-                ),
-                'medium': _triangle_membership(
-                    egg_width_ratio,
-                    cfg.egg_width_medium_left_ratio,
-                    cfg.egg_width_medium_peak_ratio,
-                    cfg.egg_width_medium_right_ratio,
-                ),
-                'large': _rising_membership(
-                    egg_width_ratio,
-                    cfg.egg_width_large_empty_ratio,
-                    cfg.egg_width_large_full_ratio,
-                ),
-            },
-        ))
+    label, confidence, memberships, crisp_score = _mamdani_infer(rules)
 
-    if egg_length_ratio is not None:
-        feature_memberships.append((
-            0.15,
-            {
-                'small': _falling_membership(
-                    egg_length_ratio,
-                    cfg.egg_length_small_full_ratio,
-                    cfg.egg_length_small_empty_ratio,
-                ),
-                'medium': _triangle_membership(
-                    egg_length_ratio,
-                    cfg.egg_length_medium_left_ratio,
-                    cfg.egg_length_medium_peak_ratio,
-                    cfg.egg_length_medium_right_ratio,
-                ),
-                'large': _rising_membership(
-                    egg_length_ratio,
-                    cfg.egg_length_large_empty_ratio,
-                    cfg.egg_length_large_full_ratio,
-                ),
-            },
-        ))
+    # Map CoA to a 0-1 size score consistent with existing API consumers.
+    size_score = round(float(np.clip(crisp_score, 0.0, 1.0)), 4)
+    return label, confidence, memberships, size_score
 
-    total_weight = sum(weight for weight, _ in feature_memberships)
-    raw = {label: 0.0 for label in ('small', 'medium', 'large')}
-    for weight, memberships in feature_memberships:
-        for label in raw:
-            raw[label] += weight * memberships[label]
-    raw = {label: value / max(total_weight, 1e-6) for label, value in raw.items()}
 
-    total = sum(raw.values())
-    if total <= 0:
-        if egg_area_ratio < cfg.egg_size_medium_peak_ratio:
-            normalized = {'small': 1.0, 'medium': 0.0, 'large': 0.0}
-        elif egg_area_ratio < cfg.egg_size_large_full_ratio:
-            normalized = {'small': 0.0, 'medium': 1.0, 'large': 0.0}
-        else:
-            normalized = {'small': 0.0, 'medium': 0.0, 'large': 1.0}
-    else:
-        normalized = {label: value / total for label, value in raw.items()}
+# ---------------------------------------------------------------------------
+# Crack-size Mamdani FIS
+# ---------------------------------------------------------------------------
+# Input MF boundaries (all normalised to [0, 1] via config scale factors).
+#
+# length   (traced_length / fuzzy_length_scale):
+#   Small  trap [0.00, 0.00, 0.08, 0.35]
+#   Medium trap [0.15, 0.35, 0.55, 0.75]
+#   Large  trap [0.55, 0.80, 1.00, 1.00]
+#
+# area     (area_ratio / fuzzy_area_scale):
+#   Small  trap [0.00, 0.00, 0.04, 0.18]
+#   Medium trap [0.08, 0.22, 0.40, 0.65]
+#   Large  trap [0.48, 0.72, 1.00, 1.00]
+#
+# strength (strongest / fuzzy_strength_scale):
+#   Small  trap [0.00, 0.00, 0.20, 0.50]
+#   Medium trap [0.25, 0.45, 0.65, 0.85]
+#   Large  trap [0.65, 0.88, 1.00, 1.00]
+#
+# count    (len(components) / fuzzy_component_scale):
+#   Small  trap [0.00, 0.00, 0.15, 0.55]
+#   Medium trap [0.20, 0.40, 0.60, 0.80]
+#   Large  trap [0.60, 0.85, 1.00, 1.00]
 
-    label = max(normalized, key=normalized.get)
-    confidence = float(np.clip(normalized[label], 0.0, 1.0))
-    size_score = (
-        normalized['small'] * 0.20
-        + normalized['medium'] * 0.55
-        + normalized['large'] * 0.90
-    )
-    rounded_memberships = {
-        key: round(float(np.clip(value, 0.0, 1.0)), 4)
-        for key, value in normalized.items()
+
+def _crack_size_fuzzify(
+    length: float,
+    area: float,
+    strength: float,
+    count: float,
+) -> dict[str, dict[str, float]]:
+    """Fuzzify the four crack-size inputs. Returns {variable: {label: mu}}."""
+    return {
+        'length': {
+            'small':  _trapezoid_membership(length,   0.00, 0.00, 0.08, 0.35),
+            'medium': _trapezoid_membership(length,   0.15, 0.35, 0.55, 0.75),
+            'large':  _trapezoid_membership(length,   0.55, 0.80, 1.00, 1.00),
+        },
+        'area': {
+            'small':  _trapezoid_membership(area,     0.00, 0.00, 0.04, 0.18),
+            'medium': _trapezoid_membership(area,     0.08, 0.22, 0.40, 0.65),
+            'large':  _trapezoid_membership(area,     0.48, 0.72, 1.00, 1.00),
+        },
+        'strength': {
+            'small':  _trapezoid_membership(strength, 0.00, 0.00, 0.20, 0.50),
+            'medium': _trapezoid_membership(strength, 0.25, 0.45, 0.65, 0.85),
+            'large':  _trapezoid_membership(strength, 0.65, 0.88, 1.00, 1.00),
+        },
+        'count': {
+            'small':  _trapezoid_membership(count,    0.00, 0.00, 0.15, 0.55),
+            'medium': _trapezoid_membership(count,    0.20, 0.40, 0.60, 0.80),
+            'large':  _trapezoid_membership(count,    0.60, 0.85, 1.00, 1.00),
+        },
     }
-    return (
-        label,
-        round(confidence, 4),
-        rounded_memberships,
-        round(float(np.clip(size_score, 0.0, 1.0)), 4),
-    )
 
 
 def _fuzzy_crack_size(
@@ -3407,38 +4002,66 @@ def _fuzzy_crack_size(
     strongest: float,
     cfg: DetectionConfig,
 ) -> tuple[str, float]:
+    """Mamdani FIS for crack size classification.
+
+    Inputs (normalised):
+        traced_length  – skeleton length in px  → / fuzzy_length_scale
+        traced_pixels  – crack area in px       → area_ratio / fuzzy_area_scale
+        egg_area       – egg area in px²        (denominator for area ratio)
+        components     – list of crack fragments → count / fuzzy_component_scale
+        strongest      – strongest response p90  → / fuzzy_strength_scale
+
+    Rules (12, all unique):
+        R1-R3   small conjuncts
+        R4-R7   medium conjuncts
+        R8-R12  large conjuncts (5 rules for extra coverage of severe cracks)
+
+    Defuzzification: Centroid of Area on output universe [0, 1].
+    """
     if not is_crack:
         return 'none', 1.0
 
     area_ratio = traced_pixels / max(egg_area, 1.0)
-    length = float(np.clip(traced_length / cfg.fuzzy_length_scale, 0.0, 1.0))
-    area = float(np.clip(area_ratio / cfg.fuzzy_area_scale, 0.0, 1.0))
-    strength = float(np.clip(strongest / cfg.fuzzy_strength_scale, 0.0, 1.0))
-    count = float(np.clip(len(components) / cfg.fuzzy_component_scale, 0.0, 1.0))
+    length   = float(np.clip(traced_length / cfg.fuzzy_length_scale,    0.0, 1.0))
+    area     = float(np.clip(area_ratio    / cfg.fuzzy_area_scale,      0.0, 1.0))
+    strength = float(np.clip(strongest     / cfg.fuzzy_strength_scale,  0.0, 1.0))
+    count    = float(np.clip(len(components) / cfg.fuzzy_component_scale, 0.0, 1.0))
 
-    memberships = {
-        'small': max(
-            min(_falling_membership(length, 0.08, 0.50), _falling_membership(area, 0.04, 0.18)),
-            min(_falling_membership(length, 0.08, 0.50), _falling_membership(strength, 0.20, 0.60)),
-            min(_falling_membership(area, 0.04, 0.18), _falling_membership(count, 0.15, 0.65)),
-        ),
-        'medium': max(
-            min(_triangle_membership(length, 0.12, 0.42, 0.78), _triangle_membership(area, 0.05, 0.30, 0.72)),
-            min(_triangle_membership(length, 0.12, 0.42, 0.78), _triangle_membership(strength, 0.18, 0.50, 0.88)),
-            min(_triangle_membership(area, 0.05, 0.30, 0.72), _triangle_membership(count, 0.12, 0.42, 0.86)),
-        ),
-        'large': max(
-            min(_rising_membership(length, 0.48, 0.90), _rising_membership(area, 0.42, 0.86)),
-            min(_rising_membership(length, 0.48, 0.90), _rising_membership(strength, 0.55, 0.95)),
-            min(_rising_membership(area, 0.42, 0.86), _rising_membership(count, 0.58, 1.0)),
-        ),
-    }
-    total = sum(memberships.values())
-    if total <= 0:
-        label = 'large' if area >= 0.5 or length >= 0.55 else 'medium'
-        return label, 0.34
-    label = max(memberships, key=memberships.get)
-    return label, round(float(np.clip(memberships[label] / total, 0.0, 1.0)), 4)
+    mu = _crack_size_fuzzify(length, area, strength, count)
+    ln = mu['length']
+    ar = mu['area']
+    st = mu['strength']
+    co = mu['count']
+
+    rules: list[tuple[float, str]] = [
+        # R1: length small AND area small → small
+        (min(ln['small'], ar['small']),   'small'),
+        # R2: length small AND strength small → small
+        (min(ln['small'], st['small']),   'small'),
+        # R3: strength small AND count small → small
+        (min(st['small'], co['small']),   'small'),
+        # R4: length medium AND area medium → medium
+        (min(ln['medium'], ar['medium']), 'medium'),
+        # R5: length medium AND strength medium → medium
+        (min(ln['medium'], st['medium']), 'medium'),
+        # R6: area medium AND count medium → medium
+        (min(ar['medium'], co['medium']), 'medium'),
+        # R7: count medium AND strength medium → medium  (unique: covers strength+count)
+        (min(co['medium'], st['medium']), 'medium'),
+        # R8: length large AND area large → large
+        (min(ln['large'], ar['large']),   'large'),
+        # R9: length large AND strength large → large
+        (min(ln['large'], st['large']),   'large'),
+        # R10: area large AND count large → large
+        (min(ar['large'], co['large']),   'large'),
+        # R11: strength large AND count large → large  (unique: covers strength+count large)
+        (min(st['large'], co['large']),   'large'),
+        # R12: area large AND strength large → large   (unique: covers area+strength large)
+        (min(ar['large'], st['large']),   'large'),
+    ]
+
+    label, confidence, _, _ = _mamdani_infer(rules)
+    return label, confidence
 
 
 def fuzzy_area_consistency(
@@ -3690,13 +4313,20 @@ def detect_image_bytes(
     (
         pale_surface_components,
         pale_surface_response,
+        pale_surface_weak,
         pale_surface_strong,
     ) = _pale_surface_crack_components(
         image,
+        egg_mask,
         inner_mask,
         rim_band,
         cfg,
     )
+    pale_surface_score = float(max((
+        component.metrics['score']
+        + component.metrics['skeleton_length'] / max(cfg.geometry_scale, 1e-6) / 80.0
+        for component in pale_surface_components
+    ), default=0.0))
     trusted_local_mask = np.zeros_like(inner_mask)
     for component in local_hairline_components:
         _paste_component(trusted_local_mask, component)
@@ -3704,6 +4334,11 @@ def detect_image_bytes(
         trusted_local_mask,
         cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7)),
     )
+    pale_surface_components = [
+        component
+        for component in pale_surface_components
+        if _component_mask_overlap(component, nearby_local_mask) < 0.60
+    ]
     persistent_dark_components = [
         component
         for component in _mask_to_components(
@@ -3838,6 +4473,58 @@ def detect_image_bytes(
         for component in components
         if _has_valid_perimeter_geometry(component, shell_depth, cfg)
     ]
+    spatial_chain_components: list[CrackComponent] = []
+    spatial_chain_mask = np.zeros_like(inner_mask)
+    spatial_chain_score = 0.0
+    spatial_group = _dominant_spatial_chain(components, cfg)
+    if spatial_group:
+        merged_spatial = _merge_component_group(
+            spatial_group,
+            inner_mask.shape,
+            combined_response,
+            combined_strong,
+            rim_band,
+            cfg,
+        )
+        spatial_candidates = (
+            [merged_spatial] if merged_spatial is not None else spatial_group
+        )
+        for component in spatial_candidates:
+            component.source = 'spatial_chain'
+        _attach_texture_metrics(spatial_candidates, texture_response, texture_strong)
+        spatial_candidates = [
+            component
+            for component in spatial_candidates
+            if _has_valid_trace_geometry(component.metrics, cfg)
+        ]
+        for component in spatial_candidates:
+            _annotate_perimeter_geometry(
+                component, perimeter_zone, shell_depth, egg_mask,
+            )
+        spatial_chain_components = [
+            component
+            for component in spatial_candidates
+            if _has_valid_perimeter_geometry(component, shell_depth, cfg)
+        ]
+        if spatial_chain_components:
+            for component in spatial_chain_components:
+                _paste_component(spatial_chain_mask, component)
+            total_spatial_length = sum(
+                component.metrics['skeleton_length']
+                for component in spatial_chain_components
+            )
+            max_spatial_span = max(
+                component.metrics['span']
+                for component in spatial_chain_components
+            )
+            spatial_chain_score = float(
+                total_spatial_length
+                + max_spatial_span
+                + max(
+                    component.metrics['score']
+                    for component in spatial_chain_components
+                ) * 25.0
+            )
     fragmented_candidates = raw_component_count >= cfg.max_fragmented_components
     dominant_override = False
     if dominant_local_components:
@@ -3846,6 +4533,9 @@ def detect_image_bytes(
         # one-pixel crack into a much thicker texture blob.
         components = dominant_local_components
         _attach_texture_metrics(components, texture_response, texture_strong)
+        dominant_override = True
+    elif spatial_chain_components:
+        components = spatial_chain_components
         dominant_override = True
     elif fragmented_candidates:
         dominant_components = [
@@ -3963,7 +4653,16 @@ def detect_image_bytes(
         + min(component.metrics['elongation'] / 5.0, 1.0) * 0.10
         for component in thin_texture_components
     ), default=0.0))
-    texture_like_fragmentation = fragmented_candidates and not dominant_override
+    trusted_fragmentation_override = bool(
+        dominant_override
+        or paper_metrics['is_crack']
+        or pale_surface_components
+        or spatial_chain_components
+    )
+    texture_like_fragmentation = (
+        fragmented_candidates and not trusted_fragmentation_override
+    )
+    fragmentation_suppressed = texture_like_fragmentation
     if texture_like_fragmentation:
         decision_score = min(decision_score, 0.35)
         thin_crack_score = 0.0
@@ -3983,6 +4682,7 @@ def detect_image_bytes(
     component_crack = normal_crack or thin_crack
     paper_crack = bool(paper_metrics['is_crack'])
     is_crack = component_crack or paper_crack
+    pre_decision_sources = {component.source for component in components}
     if component_crack:
         accepted_mask = validated_mask.copy()
         if paper_crack:
@@ -3999,6 +4699,33 @@ def detect_image_bytes(
     trace_mask = _skeletonize(accepted_mask)
     traced_pixels = int(cv2.countNonZero(accepted_mask))
     traced_length = float(cv2.countNonZero(trace_mask))
+
+    if not is_crack:
+        primary_detection_channel = 'none'
+    elif 'pale_surface' in pre_decision_sources:
+        primary_detection_channel = 'pale_surface'
+    elif 'spatial_chain' in pre_decision_sources:
+        primary_detection_channel = 'spatial_chain'
+    elif any(source.startswith('persistent') for source in pre_decision_sources):
+        primary_detection_channel = 'persistent_hairline'
+    elif any(source.startswith('local') for source in pre_decision_sources):
+        primary_detection_channel = 'local_hairline'
+    elif thin_crack:
+        primary_detection_channel = 'thin_texture'
+    elif component_crack:
+        primary_detection_channel = 'component'
+    elif paper_crack:
+        primary_detection_channel = 'paper'
+    else:
+        primary_detection_channel = 'none'
+
+    internal_support_mask = cv2.bitwise_or(
+        accepted_mask,
+        cv2.bitwise_or(
+            pale_surface_weak,
+            cv2.bitwise_or(trusted_local_mask, spatial_chain_mask),
+        ),
+    )
 
     quality_score = float(quality['quality_score'])
     if is_crack:
@@ -4104,6 +4831,10 @@ def detect_image_bytes(
             component.metrics['strength'] for component in components
         ])), 2) if is_crack and components else 0.0,
         'detection_score': round(decision_score, 3),
+        'primary_detection_channel': primary_detection_channel,
+        'pale_surface_score': round(pale_surface_score, 4),
+        'spatial_chain_score': round(spatial_chain_score, 4),
+        'fragmentation_suppressed': fragmentation_suppressed,
         'paper_method_used': True,
         'paper_method_crack': bool(paper_metrics['is_crack']),
         'paper_method_score': round(float(paper_metrics['score']), 4),
@@ -4151,6 +4882,7 @@ def detect_image_bytes(
     if _include_internal:
         result['_internal_crack_mask'] = accepted_mask.copy()
         result['_internal_trace_mask'] = trace_mask.copy()
+        result['_internal_support_mask'] = internal_support_mask.copy()
         result['_internal_components'] = list(components)
         result['_internal_image'] = image.copy()
         result['_internal_egg_contour'] = egg_contour.copy()
@@ -4190,9 +4922,11 @@ def detect_image_bytes(
             ),
             'persistent_bright_trace': _encode_image(persistent_bright_mask),
             'pale_surface_response': _encode_image(pale_surface_response),
+            'pale_surface_weak_candidates': _encode_image(pale_surface_weak),
             'pale_surface_strong_candidates': _encode_image(
                 pale_surface_strong,
             ),
+            'spatial_chain_candidates': _encode_image(spatial_chain_mask),
             'accepted_dark_trace': _encode_image(accepted_dark),
             'accepted_bright_trace': _encode_image(accepted_bright),
             'accepted_texture_trace': _encode_image(accepted_texture),
@@ -4597,10 +5331,11 @@ def _decode_crack_mask(result: dict[str, Any]) -> np.ndarray | None:
 def _registered_egg_trace(
     result: dict[str, Any],
     cfg: DetectionConfig,
+    mask_key: str = '_internal_crack_mask',
 ) -> np.ndarray | None:
-    mask = result.get('_internal_crack_mask')
+    mask = result.get(mask_key)
     contour = result.get('_internal_egg_contour')
-    if not isinstance(mask, np.ndarray):
+    if not isinstance(mask, np.ndarray) and mask_key == '_internal_crack_mask':
         mask = _decode_crack_mask(result)
     if mask is None:
         return None
@@ -4716,6 +5451,7 @@ def _clear_unconfirmed_crack(
         'candidate_pixels': 0,
         'longest_candidate': 0.0,
         'mean_candidate_strength': 0.0,
+        'primary_detection_channel': 'none',
         'thin_crack_detected': False,
         'thin_crack_score': 0.0,
         'detection_iterations': 0,
@@ -4772,6 +5508,10 @@ def detect_camera_images_bytes(
         if result['is_crack']
     ]
     candidates = [candidate for candidate in candidates if candidate[2] is not None]
+    support_masks = [
+        _registered_egg_trace(result, cfg, '_internal_support_mask')
+        for result in frame_results
+    ]
     stable_indices: set[int] = set()
     dilation_size = max(1, cfg.multi_frame_dilation | 1)
     dilation_kernel = cv2.getStructuringElement(
@@ -4795,6 +5535,73 @@ def detect_camera_images_bytes(
     sample_count = len(frame_results)
     stable_results = [frame_results[index] for index in stable_indices]
     if len(stable_results) < cfg.multi_frame_min_agreement:
+        weak_confirmed: list[tuple[int, dict[str, Any], set[int]]] = []
+        for candidate_index, result, crack_mask in candidates:
+            crack_area = max(float(cv2.countNonZero(crack_mask)), 1.0)
+            if (
+                float(result.get('detection_score', 0.0))
+                < cfg.decision_min_score
+                and result.get('primary_detection_channel') not in {
+                    'pale_surface',
+                    'spatial_chain',
+                    'persistent_hairline',
+                    'local_hairline',
+                }
+            ):
+                continue
+            confirmers: set[int] = set()
+            for support_index, support_mask in enumerate(support_masks):
+                if support_index == candidate_index or support_mask is None:
+                    continue
+                if support_mask.shape != crack_mask.shape:
+                    continue
+                support_area = max(float(cv2.countNonZero(support_mask)), 1.0)
+                if (
+                    support_area / crack_area
+                    > cfg.multi_frame_max_support_area_ratio
+                ):
+                    continue
+                overlap = cv2.countNonZero(cv2.bitwise_and(
+                    crack_mask,
+                    cv2.dilate(support_mask, dilation_kernel),
+                )) / crack_area
+                if overlap >= cfg.multi_frame_min_weak_overlap:
+                    confirmers.add(support_index)
+            if confirmers:
+                weak_confirmed.append((candidate_index, result, confirmers))
+
+        if weak_confirmed:
+            _, representative, confirmers = max(
+                weak_confirmed,
+                key=lambda item: (
+                    len(item[2]),
+                    item[1]['image_quality_score'],
+                    item[1]['detection_score'],
+                ),
+            )
+            crack_votes = min(sample_count, 1 + len(confirmers))
+            area = float(representative['area_ratio'])
+            result = dict(representative)
+            result.update({
+                'processing_time_ms': int(
+                    (time.perf_counter() - started) * 1000,
+                ),
+                'sample_count': sample_count,
+                'crack_votes': crack_votes,
+                'no_crack_votes': sample_count - crack_votes,
+                'decision_consistency': round(crack_votes / sample_count, 4),
+                'area_consistent': True,
+                'area_consistency': 1.0,
+                'area_mean_ratio': round(area, 6),
+                'area_spread_ratio': 0.0,
+                'area_samples': [round(area, 6)],
+                'quality_message': (
+                    'Crack trace confirmed by weak support across multiple '
+                    'camera frames'
+                ),
+            })
+            return _remove_internal_values(result)
+
         representative = max(
             frame_results,
             key=lambda result: (result['image_quality_score'], -result['detection_score']),

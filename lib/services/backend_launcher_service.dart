@@ -37,6 +37,24 @@ class BackendLauncherService {
     return null;
   }
 
+  /// Find a virtual-environment Python given the backend directory.
+  ///
+  /// The venv may live:
+  ///   1. Inside  backendDir/.venv/          (classic placement)
+  ///   2. One level up  backendDir/../.venv/ (project-root placement)
+  ///   3. Two levels up                      (monorepo / extra nesting)
+  String? _findVenvPython(String backendDirectory) {
+    final candidates = <String>[
+      p.join(backendDirectory, '.venv', 'Scripts', 'python.exe'),
+      p.normalize(p.join(backendDirectory, '..', '.venv', 'Scripts', 'python.exe')),
+      p.normalize(p.join(backendDirectory, '..', '..', '.venv', 'Scripts', 'python.exe')),
+    ];
+    for (final candidate in candidates) {
+      if (File(candidate).existsSync()) return candidate;
+    }
+    return null;
+  }
+
   Future<bool> start() async {
     if (_process != null) return true;
     if (!Platform.isWindows) return false;
@@ -53,18 +71,14 @@ class BackendLauncherService {
     final script = p.join(backendDirectory, 'run_server.py');
     if (!File(script).existsSync()) return false;
 
-    final virtualPython = p.join(
-      backendDirectory,
-      '.venv',
-      'Scripts',
-      'python.exe',
-    );
-
-    if (File(virtualPython).existsSync() &&
-        await _launch(virtualPython, [script], backendDirectory)) {
+    // Try the venv Python first (wherever it lives relative to backend dir).
+    final venvPython = _findVenvPython(backendDirectory);
+    if (venvPython != null &&
+        await _launch(venvPython, [script], backendDirectory)) {
       return true;
     }
 
+    // Fall back to system Python launchers.
     final launchers = <(String, List<String>)>[
       ('py', ['-3.11', script]),
       ('py', ['-3.13', script]),

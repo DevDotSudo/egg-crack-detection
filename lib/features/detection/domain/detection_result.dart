@@ -18,6 +18,10 @@ class DetectionResult extends Equatable {
   final double longestCandidate;
   final double meanCandidateStrength;
   final double detectionScore;
+  final String primaryDetectionChannel;
+  final double paleSurfaceScore;
+  final double spatialChainScore;
+  final bool fragmentationSuppressed;
   final int thresholdUsed;
   final double shellTextureScore;
   final double shellTextureUniformity;
@@ -71,6 +75,10 @@ class DetectionResult extends Equatable {
     this.longestCandidate = 0,
     this.meanCandidateStrength = 0,
     this.detectionScore = 0,
+    this.primaryDetectionChannel = 'none',
+    this.paleSurfaceScore = 0,
+    this.spatialChainScore = 0,
+    this.fragmentationSuppressed = false,
     this.thresholdUsed = 0,
     this.shellTextureScore = 0,
     this.shellTextureUniformity = 1,
@@ -132,6 +140,12 @@ class DetectionResult extends Equatable {
       longestCandidate: _double(json['longest_candidate']),
       meanCandidateStrength: _double(json['mean_candidate_strength']),
       detectionScore: _double(json['detection_score']),
+      primaryDetectionChannel:
+          json['primary_detection_channel'] as String? ?? 'none',
+      paleSurfaceScore: _double(json['pale_surface_score']),
+      spatialChainScore: _double(json['spatial_chain_score']),
+      fragmentationSuppressed:
+          json['fragmentation_suppressed'] as bool? ?? false,
       thresholdUsed: (json['threshold_used'] as num? ?? 0).toInt(),
       shellTextureScore: _double(json['shell_texture_score']),
       shellTextureUniformity: _double(
@@ -211,6 +225,10 @@ class DetectionResult extends Equatable {
       'longest_candidate': longestCandidate,
       'mean_candidate_strength': meanCandidateStrength,
       'detection_score': detectionScore,
+      'primary_detection_channel': primaryDetectionChannel,
+      'pale_surface_score': paleSurfaceScore,
+      'spatial_chain_score': spatialChainScore,
+      'fragmentation_suppressed': fragmentationSuppressed,
       'threshold_used': thresholdUsed,
       'shell_texture_score': shellTextureScore,
       'shell_texture_uniformity': shellTextureUniformity,
@@ -268,6 +286,10 @@ class DetectionResult extends Equatable {
         longestCandidate,
         meanCandidateStrength,
         detectionScore,
+        primaryDetectionChannel,
+        paleSurfaceScore,
+        spatialChainScore,
+        fragmentationSuppressed,
         thresholdUsed,
         shellTextureScore,
         shellTextureUniformity,
