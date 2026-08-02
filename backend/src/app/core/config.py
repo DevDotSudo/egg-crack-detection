@@ -26,7 +26,7 @@ class DetectionConfig:
     # Geometric thresholds are calibrated against this apparent egg width.
     # Larger source frames keep their extra detail while line lengths, gaps,
     # kernels, and thickness limits scale with the detected shell.
-    geometry_reference_egg_minor_axis: float = 370.0
+    geometry_reference_egg_minor_axis: float = 550.0
     geometry_min_scale: float = 0.65
     geometry_max_scale: float = 2.25
     geometry_scale: float = 1.0
@@ -50,31 +50,31 @@ class DetectionConfig:
     min_inner_margin: float = 1.0
     min_inner_pixels: int = 4000
 
-    # Fuzzy apparent egg-size grading. These normalized contour-area bands
-    # assume the camera and egg distance stay approximately fixed.
-    egg_size_small_full_ratio: float = 0.12
-    egg_size_small_empty_ratio: float = 0.24
-    egg_size_medium_left_ratio: float = 0.14
-    egg_size_medium_peak_ratio: float = 0.27
-    egg_size_medium_right_ratio: float = 0.44
-    egg_size_large_empty_ratio: float = 0.34
-    egg_size_large_full_ratio: float = 0.50
+    # Fuzzy apparent egg-size grading. Recalibrated for 4 inches camera distance
+    # (egg appears ~1.5x larger in frame compared to ~6 inches).
+    egg_size_small_full_ratio: float = 0.25
+    egg_size_small_empty_ratio: float = 0.42
+    egg_size_medium_left_ratio: float = 0.30
+    egg_size_medium_peak_ratio: float = 0.52
+    egg_size_medium_right_ratio: float = 0.72
+    egg_size_large_empty_ratio: float = 0.60
+    egg_size_large_full_ratio: float = 0.85
 
     # Fuzzy size also considers the egg axes relative to the normalized frame.
-    egg_width_small_full_ratio: float = 0.24
-    egg_width_small_empty_ratio: float = 0.39
-    egg_width_medium_left_ratio: float = 0.25
-    egg_width_medium_peak_ratio: float = 0.43
-    egg_width_medium_right_ratio: float = 0.61
-    egg_width_large_empty_ratio: float = 0.52
-    egg_width_large_full_ratio: float = 0.68
-    egg_length_small_full_ratio: float = 0.36
-    egg_length_small_empty_ratio: float = 0.53
-    egg_length_medium_left_ratio: float = 0.37
-    egg_length_medium_peak_ratio: float = 0.57
-    egg_length_medium_right_ratio: float = 0.77
-    egg_length_large_empty_ratio: float = 0.68
-    egg_length_large_full_ratio: float = 0.84
+    egg_width_small_full_ratio: float = 0.36
+    egg_width_small_empty_ratio: float = 0.55
+    egg_width_medium_left_ratio: float = 0.40
+    egg_width_medium_peak_ratio: float = 0.62
+    egg_width_medium_right_ratio: float = 0.82
+    egg_width_large_empty_ratio: float = 0.72
+    egg_width_large_full_ratio: float = 0.92
+    egg_length_small_full_ratio: float = 0.50
+    egg_length_small_empty_ratio: float = 0.70
+    egg_length_medium_left_ratio: float = 0.55
+    egg_length_medium_peak_ratio: float = 0.78
+    egg_length_medium_right_ratio: float = 0.92
+    egg_length_large_empty_ratio: float = 0.82
+    egg_length_large_full_ratio: float = 0.98
 
     # Capture-quality validation. Poor images are rejected instead of being
     # confidently labeled as cracked or clean.
