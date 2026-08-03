@@ -5,6 +5,8 @@ import json
 import os
 import sqlite3
 import threading
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -70,12 +72,21 @@ class DetectionDB:
     # Private helpers
     # ------------------------------------------------------------------
 
-    def _connect(self) -> sqlite3.Connection:
+    @contextmanager
+    def _connect(self) -> Iterator[sqlite3.Connection]:
         conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
-        conn.row_factory = sqlite3.Row
-        conn.execute('PRAGMA journal_mode=WAL;')
-        conn.execute('PRAGMA foreign_keys=ON;')
-        return conn
+        try:
+            conn.row_factory = sqlite3.Row
+            conn.execute('PRAGMA journal_mode=WAL;')
+            conn.execute('PRAGMA foreign_keys=ON;')
+            conn.execute('PRAGMA busy_timeout=5000;')
+            yield conn
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
 
     def _init_db(self) -> None:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)

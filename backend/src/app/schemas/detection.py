@@ -1,4 +1,5 @@
 from typing import Any, Dict, List, Optional
+
 from pydantic import BaseModel, Field
 
 
@@ -49,13 +50,34 @@ class DetectionResponse(BaseModel):
     egg_size_confidence: float = 0.0
     egg_area_ratio: float = 0.0
     egg_width_pixels: float = 0.0
+    egg_height_pixels: float = 0.0
     egg_length_pixels: float = 0.0
+    egg_width_mm: Optional[float] = None
+    egg_height_mm: Optional[float] = None
     egg_width_ratio: float = 0.0
     egg_length_ratio: float = 0.0
+    egg_measurement_valid: bool = False
+    egg_physical_measurement_valid: bool = False
+    egg_measurement_message: str = ''
+    egg_size_requires_calibration: bool = False
+    egg_size_mode: str = 'apparent_4_inch'
+    egg_apparent_width_ratio: float = 0.0
+    egg_apparent_height_ratio: float = 0.0
+    camera_distance_inches: float = 4.0
+    camera_orientation_fix: str = 'none'
+    coordinate_space: str = 'returned_processed_image'
+    calibration_available: bool = False
+    calibration_pixels_per_mm: Optional[float] = None
+    calibration_reference_width_mm: Optional[float] = None
+    calibration_reference_width_pixels: Optional[float] = None
+    calibration_processed_width: Optional[int] = None
+    calibration_processed_height: Optional[int] = None
     egg_size_score: float = 0.0
     egg_size_memberships: Dict[str, float] = Field(default_factory=dict)
     crack_size: str = 'none'
     crack_size_confidence: float = 0.0
+    crack_size_score: float = 0.0
+    crack_size_memberships: Dict[str, float] = Field(default_factory=dict)
     crack_mask_b64: str = ''
     crack_locations: List[Dict[str, Any]] = Field(default_factory=list)
     detection_iterations: int = 0
@@ -75,3 +97,18 @@ class DetectionResponse(BaseModel):
 class HistorySaveRequest(BaseModel):
     result: DetectionResponse
     source_name: str = 'camera'
+
+
+class ManualCalibrationRequest(BaseModel):
+    reference_width_mm: float = Field(gt=0)
+    reference_width_pixels: float = Field(gt=0)
+    processed_width: int = Field(gt=0)
+    processed_height: int = Field(gt=0)
+
+
+class CalibrationProfileResponse(BaseModel):
+    calibrated: bool
+    required_camera_distance_inches: float
+    profile: Optional[Dict[str, Any]] = None
+    message: str
+    overlay_image_b64: Optional[str] = None

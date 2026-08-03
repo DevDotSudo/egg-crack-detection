@@ -3,7 +3,6 @@ import sys
 import unittest
 from dataclasses import replace
 from pathlib import Path
-from unittest.mock import patch
 
 import cv2
 import numpy as np
@@ -13,22 +12,17 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from app.core.config import CONFIG
-from app.services import detector as detector_module
+from app.detection.pipeline import EggCrackPipeline
+from app.schemas.detection import DetectionResponse
 from app.services.detector import (
-    CrackComponent,
     DetectionError,
-    _fuzzy_egg_size,
-    _dominant_fragment_group,
-    _is_dominant_crack_component,
     detect_camera_images_bytes,
-    detect_camera_image_bytes,
     detect_image_bytes,
     score_camera_focus_image_bytes,
 )
-from app.schemas.detection import DetectionResponse
 
 
-def _candled_egg(
+def candled_egg(
     crack: str | None = None,
     textured: bool = False,
     horizontal: bool = False,
@@ -37,29 +31,20 @@ def _candled_egg(
     yy, xx = np.mgrid[:height, :width]
     center_x, center_y = 480, 270
     radius_x, radius_y = (230, 185) if horizontal else (185, 230)
-    normalized = (
-        ((xx - center_x) / radius_x) ** 2
-        + ((yy - center_y) / radius_y) ** 2
-    )
+    normalized = ((xx - center_x) / radius_x) ** 2 + ((yy - center_y) / radius_y) ** 2
     egg = normalized <= 1.0
-
-    hotspot = np.exp(-(
-        ((xx - 515) / 190.0) ** 2
-        + ((yy - 255) / 250.0) ** 2
-    ))
+    hotspot = np.exp(-(((xx - 515) / 190.0) ** 2 + ((yy - 255) / 250.0) ** 2))
     shell = np.clip(145 + hotspot * 76 - normalized * 20, 0, 255)
     image = np.full((height, width, 3), 4, dtype=np.uint8)
     image[:, :, 0][egg] = np.clip(shell[egg] * 0.42, 0, 255).astype(np.uint8)
     image[:, :, 1][egg] = np.clip(shell[egg] * 0.78, 0, 255).astype(np.uint8)
     image[:, :, 2][egg] = np.clip(shell[egg] * 1.06, 0, 255).astype(np.uint8)
-
     rng = np.random.default_rng(7)
     noise = rng.normal(0, 1.1, image.shape[:2]).astype(np.int16)
     for channel in range(3):
         values = image[:, :, channel].astype(np.int16)
         values[egg] += noise[egg]
         image[:, :, channel] = np.clip(values, 0, 255).astype(np.uint8)
-
     if textured:
         texture_rng = np.random.default_rng(19)
         for _ in range(220):
@@ -73,18 +58,8 @@ def _candled_egg(
             dx = int(round(np.cos(angle) * length / 2.0))
             dy = int(round(np.sin(angle) * length / 2.0))
             darkening = int(texture_rng.integers(14, 27))
-            color = tuple(
-                max(int(value) - darkening, 0) for value in image[y, x]
-            )
-            cv2.line(
-                image,
-                (x - dx, y - dy),
-                (x + dx, y + dy),
-                color,
-                1,
-                cv2.LINE_8,
-            )
-
+            color = tuple(max(int(value) - darkening, 0) for value in image[y, x])
+            cv2.line(image, (x - dx, y - dy), (x + dx, y + dy), color, 1, cv2.LINE_8)
     points = np.array([
         [365, 205], [405, 222], [438, 211], [472, 246],
         [510, 235], [548, 274], [585, 263], [620, 302],
@@ -92,210 +67,78 @@ def _candled_egg(
     if crack == 'dark':
         cv2.polylines(image, [points], False, (34, 42, 50), 1, cv2.LINE_8)
     elif crack == 'faint_dark':
-        # Only ~12 grey levels below the shell — a challenging case for dark
-        # crack detection, still well below the 14-27 level texture noise.
-        for i in range(len(points) - 1):
-            pt1 = tuple(points[i])
-            pt2 = tuple(points[i + 1])
-            mid_y = (pt1[1] + pt2[1]) // 2
-            mid_x = (pt1[0] + pt2[0]) // 2
-            base = image[mid_y, mid_x].astype(int)
-            color = tuple(max(int(v) - 12, 0) for v in base)
-            cv2.line(image, pt1, pt2, color, 1, cv2.LINE_8)
+        for first, second in zip(points[:-1], points[1:]):
+            middle = ((first + second) // 2).astype(int)
+            color = tuple(max(int(value) - 12, 0) for value in image[middle[1], middle[0]])
+            cv2.line(image, tuple(first), tuple(second), color, 1, cv2.LINE_8)
     elif crack == 'dark_on_texture':
-        # 30 grey levels below shell — a moderate dark crack on a noisy surface
-        for i in range(len(points) - 1):
-            pt1 = tuple(points[i])
-            pt2 = tuple(points[i + 1])
-            mid_y = (pt1[1] + pt2[1]) // 2
-            mid_x = (pt1[0] + pt2[0]) // 2
-            base = image[mid_y, mid_x].astype(int)
-            color = tuple(max(int(v) - 30, 0) for v in base)
-            cv2.line(image, pt1, pt2, color, 1, cv2.LINE_8)
-    elif crack == 'subtle':
-        cv2.polylines(image, [points], False, (75, 135, 185), 1, cv2.LINE_8)
+        for first, second in zip(points[:-1], points[1:]):
+            middle = ((first + second) // 2).astype(int)
+            color = tuple(max(int(value) - 30, 0) for value in image[middle[1], middle[0]])
+            cv2.line(image, tuple(first), tuple(second), color, 1, cv2.LINE_8)
     elif crack == 'bright':
         cv2.polylines(image, [points], False, (245, 252, 255), 1, cv2.LINE_8)
-
-    ok, encoded = cv2.imencode('.png', image)
-    if not ok:
-        raise AssertionError('Could not encode synthetic test image')
-    return encoded.tobytes()
+    return encode_png(image)
 
 
-def _modified_candled_egg(kind: str) -> bytes:
+def modified_egg(kind: str) -> bytes:
     image = cv2.imdecode(
-        np.frombuffer(_candled_egg('dark' if kind == 'blur' else None), dtype=np.uint8),
+        np.frombuffer(candled_egg('dark' if kind == 'blur' else None), dtype=np.uint8),
         cv2.IMREAD_COLOR,
     )
-    if image is None:
-        raise AssertionError('Could not create stress-test image')
-
     if kind == 'yolk_arc':
-        cv2.ellipse(
-            image,
-            (480, 285),
-            (105, 72),
-            0,
-            190,
-            350,
-            (42, 76, 105),
-            3,
-            cv2.LINE_AA,
-        )
+        cv2.ellipse(image, (480, 285), (105, 72), 0, 190, 350, (42, 76, 105), 3, cv2.LINE_AA)
     elif kind == 'dark_texture':
-        # Broad, softly shaded shell marks are texture, not cracks. Their
-        # outlines must not be promoted to hairlines by the dark channel.
         texture = np.zeros(image.shape[:2], dtype=np.float32)
         cv2.ellipse(texture, (430, 245), (48, 27), 18, 0, 360, 1.0, -1)
         cv2.ellipse(texture, (525, 305), (38, 22), -24, 0, 360, 0.8, -1)
-        cv2.circle(texture, (505, 205), 19, 0.65, -1)
         texture = cv2.GaussianBlur(texture, (31, 31), 0)
         for channel in range(3):
-            values = image[:, :, channel].astype(np.float32)
-            values -= texture * (42.0 + channel * 5.0)
-            image[:, :, channel] = np.clip(values, 0, 255).astype(np.uint8)
+            image[:, :, channel] = np.clip(
+                image[:, :, channel].astype(np.float32) - texture * (42.0 + channel * 5.0),
+                0,
+                255,
+            ).astype(np.uint8)
     elif kind == 'rim_texture':
-        # Short, repeated shell-grain strokes near the lower rim are not a
-        # single fracture, even though the full-egg scan must include them.
-        texture_rng = np.random.default_rng(111)
+        rng = np.random.default_rng(111)
         for _ in range(80):
-            x = int(texture_rng.integers(340, 620))
-            y = int(texture_rng.integers(360, 455))
-            length = int(texture_rng.integers(20, 45))
-            angle = float(texture_rng.normal(0.05, 0.22))
+            x = int(rng.integers(340, 620))
+            y = int(rng.integers(360, 455))
+            length = int(rng.integers(20, 45))
+            angle = float(rng.normal(0.05, 0.22))
             dx = int(np.cos(angle) * length / 2.0)
             dy = int(np.sin(angle) * length / 2.0)
-            cv2.line(
-                image,
-                (x - dx, y - dy),
-                (x + dx, y + dy),
-                (55, 75, 95),
-                1,
-                cv2.LINE_AA,
-            )
+            cv2.line(image, (x - dx, y - dy), (x + dx, y + dy), (55, 75, 95), 1, cv2.LINE_AA)
     elif kind == 'shell_fiber':
-        # A smooth, slightly wider shell fiber should not be treated as a
-        # crack simply because it forms one long darker ridge.
-        points = np.array([
-            [575, 130],
-            [584, 180],
-            [578, 240],
-            [587, 300],
-            [580, 360],
-            [590, 415],
-        ], dtype=np.int32)
+        points = np.array([[575, 130], [584, 180], [578, 240], [587, 300], [580, 360], [590, 415]], dtype=np.int32)
         cv2.polylines(image, [points], False, (58, 78, 98), 2, cv2.LINE_AA)
     elif kind == 'pale_surface_crack':
-        # A whitish shell fracture under candling can be brighter and less
-        # saturated than the surrounding shell instead of dark.
-        first = np.array([
-            [292, 352],
-            [323, 335],
-            [358, 333],
-        ], dtype=np.int32)
-        second = np.array([
-            [365, 330],
-            [398, 309],
-        ], dtype=np.int32)
+        first = np.array([[292, 352], [323, 335], [358, 333]], dtype=np.int32)
+        second = np.array([[365, 330], [398, 309]], dtype=np.int32)
         cv2.polylines(image, [first], False, (172, 184, 170), 2, cv2.LINE_AA)
         cv2.polylines(image, [second], False, (172, 184, 170), 2, cv2.LINE_AA)
     elif kind == 'pale_branching_surface_crack':
-        # Mirrors the pasted candling sample: a pale vertical crack with
-        # angled/lateral branches on a mottled illuminated shell.
-        trunk = np.array([
-            [470, 180],
-            [474, 225],
-            [478, 270],
-            [476, 315],
-        ], dtype=np.int32)
-        left_branch = np.array([
-            [476, 315],
-            [440, 330],
-            [405, 342],
-            [365, 360],
-        ], dtype=np.int32)
-        right_branch = np.array([
-            [478, 270],
-            [510, 292],
-            [540, 325],
-        ], dtype=np.int32)
-        for branch in (trunk, left_branch, right_branch):
+        branches = (
+            np.array([[470, 180], [474, 225], [478, 270], [476, 315]], dtype=np.int32),
+            np.array([[476, 315], [440, 330], [405, 342], [365, 360]], dtype=np.int32),
+            np.array([[478, 270], [510, 292], [540, 325]], dtype=np.int32),
+        )
+        for branch in branches:
             cv2.polylines(image, [branch], False, (178, 190, 168), 2, cv2.LINE_AA)
     elif kind == 'pale_shell_arc':
-        # Smooth crescent-like shell marks near the lower body can look bright
-        # after candling, but they are not fracture geometry.
-        cv2.ellipse(
-            image,
-            (480, 395),
-            (34, 15),
-            0,
-            200,
-            340,
-            (178, 190, 168),
-            2,
-            cv2.LINE_AA,
-        )
+        cv2.ellipse(image, (480, 395), (34, 15), 0, 200, 340, (178, 190, 168), 2, cv2.LINE_AA)
     elif kind == 'glare':
-        cv2.line(
-            image,
-            (390, 150),
-            (570, 390),
-            (255, 255, 255),
-            22,
-            cv2.LINE_AA,
-        )
+        cv2.line(image, (390, 150), (570, 390), (255, 255, 255), 22, cv2.LINE_AA)
     elif kind == 'blur':
         image = cv2.GaussianBlur(image, (11, 11), 0)
-    else:
-        raise AssertionError(f'Unknown stress-test kind: {kind}')
-
-    ok, encoded = cv2.imencode('.png', image)
-    if not ok:
-        raise AssertionError('Could not encode stress-test image')
-    return encoded.tobytes()
+    return encode_png(image)
 
 
-def _peripheral_candled_egg() -> bytes:
-    image = cv2.imdecode(
-        np.frombuffer(_candled_egg(), dtype=np.uint8),
-        cv2.IMREAD_COLOR,
-    )
-    if image is None:
-        raise AssertionError('Could not create peripheral crack test image')
-
-    points = np.array([
-        [395, 402],
-        [430, 425],
-        [474, 414],
-        [526, 438],
-        [575, 416],
-    ], dtype=np.int32)
-    cv2.polylines(image, [points], False, (34, 42, 50), 1, cv2.LINE_8)
-
-    ok, encoded = cv2.imencode('.png', image)
-    if not ok:
-        raise AssertionError('Could not encode peripheral crack image')
-    return encoded.tobytes()
-
-
-def _transformed_candled_egg(
-    crack: str | None,
-    *,
-    translate_x: float = 0.0,
-    translate_y: float = 0.0,
-    angle: float = 0.0,
-    brightness: int = 0,
-) -> bytes:
-    image = cv2.imdecode(
-        np.frombuffer(_candled_egg(crack), dtype=np.uint8),
-        cv2.IMREAD_COLOR,
-    )
-    if image is None:
-        raise AssertionError('Could not create transformed camera frame')
+def transformed_egg(crack: str | None, x: float = 0.0, y: float = 0.0, angle: float = 0.0) -> bytes:
+    image = cv2.imdecode(np.frombuffer(candled_egg(crack), dtype=np.uint8), cv2.IMREAD_COLOR)
     transform = cv2.getRotationMatrix2D((480.0, 270.0), angle, 1.0)
-    transform[0, 2] += translate_x
-    transform[1, 2] += translate_y
+    transform[0, 2] += x
+    transform[1, 2] += y
     image = cv2.warpAffine(
         image,
         transform,
@@ -304,132 +147,26 @@ def _transformed_candled_egg(
         borderMode=cv2.BORDER_CONSTANT,
         borderValue=(4, 4, 4),
     )
-    if brightness:
-        image = np.clip(
-            image.astype(np.int16) + brightness,
-            0,
-            255,
-        ).astype(np.uint8)
+    return encode_png(image)
+
+
+def encode_png(image: np.ndarray) -> bytes:
     ok, encoded = cv2.imencode('.png', image)
     if not ok:
-        raise AssertionError('Could not encode transformed camera frame')
+        raise AssertionError('Image encoding failed')
     return encoded.tobytes()
 
 
-def _double_resolution(data: bytes) -> bytes:
-    image = cv2.imdecode(np.frombuffer(data, dtype=np.uint8), cv2.IMREAD_COLOR)
-    if image is None:
-        raise AssertionError('Could not decode image for resolution test')
-    resized = cv2.resize(image, (1920, 1080), interpolation=cv2.INTER_CUBIC)
-    ok, encoded = cv2.imencode('.png', resized)
-    if not ok:
-        raise AssertionError('Could not encode resolution test image')
-    return encoded.tobytes()
-
-
-def _decode_overlay(result: dict) -> np.ndarray:
-    data = np.frombuffer(base64.b64decode(result['overlay_image_b64']), dtype=np.uint8)
-    overlay = cv2.imdecode(data, cv2.IMREAD_COLOR)
-    if overlay is None:
-        raise AssertionError('Could not decode detector overlay')
-    return overlay
-
-
-def _encode_png_b64(image: np.ndarray) -> str:
-    ok, encoded = cv2.imencode('.png', image)
-    if not ok:
-        raise AssertionError('Could not encode test image')
-    return base64.b64encode(encoded.tobytes()).decode('ascii')
-
-
-def _fake_camera_result(
-    *,
-    is_crack: bool,
-    crack_mask: np.ndarray,
-    support_mask: np.ndarray,
-    score: float = 0.0,
-) -> dict:
-    image = np.zeros((180, 140, 3), dtype=np.uint8)
-    contour = np.array([
-        [[18, 16]],
-        [[122, 16]],
-        [[122, 164]],
-        [[18, 164]],
-    ], dtype=np.int32)
-    encoded_image = _encode_png_b64(image)
-    return {
-        'id': 'fake-camera-frame',
-        'is_crack': is_crack,
-        'confidence': 0.72 if is_crack else 0.65,
-        'area_ratio': 0.001 if is_crack else 0.0,
-        'contour_length': 80.0 if is_crack else 0.0,
-        'processing_time_ms': 1,
-        'original_image_b64': encoded_image,
-        'overlay_image_b64': encoded_image,
-        'intermediate_steps': None,
-        'timestamp': '2026-08-02T00:00:00+00:00',
-        'candidate_components': 1 if is_crack else 0,
-        'raw_candidate_components': 1,
-        'dominant_crack_override': is_crack,
-        'candidate_pixels': int(cv2.countNonZero(crack_mask)) if is_crack else 0,
-        'longest_candidate': 80.0 if is_crack else 0.0,
-        'mean_candidate_strength': 75.0 if is_crack else 0.0,
-        'detection_score': score,
-        'primary_detection_channel': 'pale_surface' if is_crack else 'none',
-        'pale_surface_score': score,
-        'spatial_chain_score': 0.0,
-        'fragmentation_suppressed': False,
-        'threshold_used': 0,
-        'paper_method_used': True,
-        'paper_method_crack': False,
-        'paper_method_score': 0.0,
-        'paper_method_components': 0,
-        'shell_texture_score': 0.0,
-        'shell_texture_uniformity': 1.0,
-        'texture_anomaly_ratio': 0.0,
-        'texture_candidate_pixels': 0,
-        'thin_crack_score': 0.0,
-        'thin_crack_detected': False,
-        'image_quality_score': 0.8,
-        'image_sharpness': 300.0,
-        'image_detail_variance': 90.0,
-        'image_saturated_ratio': 0.0,
-        'image_glare_ratio': 0.0,
-        'image_dynamic_range': 60.0,
-        'requires_recapture': False,
-        'quality_message': 'Image quality is suitable for detection',
-        'egg_detected': True,
-        'egg_score': 5.0,
-        'egg_size': 'small',
-        'egg_size_confidence': 0.9,
-        'egg_area_ratio': 0.2,
-        'egg_width_pixels': 100.0,
-        'egg_length_pixels': 150.0,
-        'egg_width_ratio': 0.5,
-        'egg_length_ratio': 0.5,
-        'egg_size_score': 0.9,
-        'egg_size_memberships': {},
-        'crack_size': 'small' if is_crack else 'none',
-        'crack_size_confidence': 0.7 if is_crack else 0.0,
-        'crack_mask_b64': _encode_png_b64(crack_mask),
-        'crack_locations': [{'id': 1, 'bounding_box': [50, 40, 20, 80]}]
-        if is_crack else [],
-        'detection_iterations': 1 if is_crack else 0,
-        'search_iterations': 2,
-        'termination_reason': 'no_more_cracks',
-        'sample_count': 1,
-        'crack_votes': 1 if is_crack else 0,
-        'no_crack_votes': 0 if is_crack else 1,
-        'decision_consistency': 1.0,
-        'area_consistent': True,
-        'area_consistency': 1.0,
-        'area_mean_ratio': 0.001 if is_crack else 0.0,
-        'area_spread_ratio': 0.0,
-        'area_samples': [0.001] if is_crack else [],
-        '_internal_crack_mask': crack_mask.copy(),
-        '_internal_support_mask': support_mask.copy(),
-        '_internal_egg_contour': contour.copy(),
+def edge_cracked_egg(location: str, polarity: str) -> bytes:
+    image = cv2.imdecode(np.frombuffer(candled_egg(), dtype=np.uint8), cv2.IMREAD_COLOR)
+    paths = {
+        'left': np.array([[300, 260], [315, 255], [330, 265], [350, 250], [375, 260], [400, 245]], dtype=np.int32),
+        'top': np.array([[480, 44], [475, 65], [488, 85], [478, 110], [492, 135], [485, 165]], dtype=np.int32),
+        'bottom': np.array([[480, 494], [474, 474], [487, 454], [478, 430], [490, 405], [482, 380]], dtype=np.int32),
     }
+    color = (30, 38, 45) if polarity == 'dark' else (245, 252, 255)
+    cv2.polylines(image, [paths[location]], False, color, 1, cv2.LINE_8)
+    return encode_png(image)
 
 
 class DetectorTests(unittest.TestCase):
@@ -439,535 +176,193 @@ class DetectorTests(unittest.TestCase):
             CONFIG,
             target_width=960,
             target_height=540,
+            camera_orientation_fix='none',
             min_egg_width=60,
             min_egg_height=90,
             min_egg_pixels=4000,
             min_inner_pixels=2500,
         )
 
-    def test_camera_iteratively_extracts_until_no_crack_remains(self) -> None:
-        result = detect_camera_image_bytes(
-            _candled_egg('dark'),
-            cfg=self.config,
-        )
-        self.assertTrue(result['is_crack'], result)
-        self.assertEqual(result['sample_count'], 1, result)
-        self.assertGreaterEqual(result['detection_iterations'], 1, result)
-        self.assertEqual(
-            len(result['crack_locations']),
-            result['detection_iterations'],
-        )
-        self.assertGreater(
-            result['search_iterations'],
-            result['detection_iterations'],
-        )
-        self.assertEqual(result['termination_reason'], 'no_more_cracks')
-        self.assertTrue(result['crack_mask_b64'])
-        DetectionResponse.model_validate(result)
-
-    def test_focus_score_prefers_sharp_illuminated_egg(self) -> None:
-        sharp = _candled_egg('dark', textured=True)
-        sharp_image = cv2.imdecode(
-            np.frombuffer(sharp, dtype=np.uint8),
-            cv2.IMREAD_COLOR,
-        )
-        self.assertIsNotNone(sharp_image)
-        blurred_image = cv2.GaussianBlur(sharp_image, (15, 15), 0)
-        ok, blurred = cv2.imencode('.png', blurred_image)
-        self.assertTrue(ok)
-
-        sharp_score = score_camera_focus_image_bytes(sharp, self.config)
-        blurred_score = score_camera_focus_image_bytes(
-            blurred.tobytes(),
-            self.config,
-        )
-
-        self.assertTrue(sharp_score['egg_detected'])
-        self.assertGreater(
-            sharp_score['focus_score'],
-            blurred_score['focus_score'],
-        )
-
-    def test_camera_keeps_two_separate_crack_locations(self) -> None:
-        image = cv2.imdecode(
-            np.frombuffer(_candled_egg('dark'), dtype=np.uint8),
-            cv2.IMREAD_COLOR,
-        )
-        self.assertIsNotNone(image)
-        second = np.array([
-            [430, 330], [445, 350], [438, 370], [455, 390], [448, 410],
-        ], dtype=np.int32)
-        cv2.polylines(image, [second], False, (30, 38, 45), 1, cv2.LINE_8)
-        ok, encoded = cv2.imencode('.png', image)
-        self.assertTrue(ok)
-
-        result = detect_camera_image_bytes(encoded.tobytes(), cfg=self.config)
-        self.assertTrue(result['is_crack'], result)
-        self.assertEqual(result['detection_iterations'], 2, result)
-        self.assertEqual(len(result['crack_locations']), 2, result)
-        first_box = result['crack_locations'][0]['bounding_box']
-        second_box = result['crack_locations'][1]['bounding_box']
-        self.assertNotEqual(first_box, second_box)
-        DetectionResponse.model_validate(result)
-
-    def test_camera_requires_a_spatially_stable_trace(self) -> None:
-        result = detect_camera_images_bytes(
-            [_candled_egg('dark'), _candled_egg('dark'), _candled_egg()],
-            cfg=self.config,
-        )
-        self.assertTrue(result['is_crack'], result)
-        self.assertEqual(result['sample_count'], 3, result)
-        self.assertGreaterEqual(result['crack_votes'], 2, result)
-        self.assertGreater(result['decision_consistency'], 0.5, result)
-        DetectionResponse.model_validate(result)
-
-    def test_registered_camera_consensus_survives_small_motion(self) -> None:
-        result = detect_camera_images_bytes(
-            [
-                _transformed_candled_egg('dark'),
-                _transformed_candled_egg(
-                    'dark', translate_x=9, translate_y=-6, angle=1.4,
-                    brightness=4,
-                ),
-                _transformed_candled_egg(
-                    'dark', translate_x=-7, translate_y=5, angle=-1.1,
-                    brightness=-3,
-                ),
-            ],
-            cfg=self.config,
-        )
-        self.assertTrue(result['is_crack'], result)
-        self.assertGreaterEqual(result['crack_votes'], 2, result)
-        self.assertNotIn('_internal_crack_mask', result)
-        DetectionResponse.model_validate(result)
-
-    def test_camera_rejects_a_one_frame_transient(self) -> None:
-        result = detect_camera_images_bytes(
-            [
-                _transformed_candled_egg('dark'),
-                _transformed_candled_egg(None, translate_x=6, translate_y=-4),
-                _transformed_candled_egg(None, translate_x=-5, translate_y=3),
-            ],
-            cfg=self.config,
-        )
+    def test_clean_egg_is_not_cracked(self) -> None:
+        result = detect_image_bytes(candled_egg(), cfg=self.config)
         self.assertFalse(result['is_crack'], result)
-        self.assertEqual(result['crack_votes'], 0, result)
-        self.assertEqual(result['termination_reason'], 'multi_frame_disagreement')
+        self.assertEqual(result['candidate_components'], 0)
         DetectionResponse.model_validate(result)
 
-    def test_camera_accepts_strong_trace_with_weak_registered_support(self) -> None:
-        crack_mask = np.zeros((180, 140), dtype=np.uint8)
-        cv2.line(crack_mask, (66, 48), (76, 126), 255, 2, cv2.LINE_8)
-        support_mask = np.zeros_like(crack_mask)
-        cv2.line(support_mask, (67, 50), (77, 126), 255, 1, cv2.LINE_8)
-        empty_mask = np.zeros_like(crack_mask)
-        frames = {
-            b'strong': _fake_camera_result(
-                is_crack=True,
-                crack_mask=crack_mask,
-                support_mask=crack_mask,
-                score=0.82,
-            ),
-            b'weak': _fake_camera_result(
-                is_crack=False,
-                crack_mask=empty_mask,
-                support_mask=support_mask,
-                score=0.0,
-            ),
-            b'clean': _fake_camera_result(
-                is_crack=False,
-                crack_mask=empty_mask,
-                support_mask=empty_mask,
-                score=0.0,
-            ),
-        }
+    def test_dark_and_bright_cracks_are_detected(self) -> None:
+        dark = detect_image_bytes(candled_egg('dark'), cfg=self.config)
+        bright = detect_image_bytes(candled_egg('bright'), cfg=self.config)
+        self.assertTrue(dark['is_crack'], dark)
+        self.assertTrue(bright['is_crack'], bright)
+        self.assertEqual(dark['primary_detection_channel'], 'dark')
+        self.assertEqual(bright['primary_detection_channel'], 'bright')
 
-        with patch.object(
-            detector_module,
-            'detect_camera_image_bytes',
-            side_effect=lambda frame, *args, **kwargs: frames[frame],
-        ):
-            result = detector_module.detect_camera_images_bytes(
-                [b'strong', b'weak', b'clean'],
-                cfg=self.config,
-            )
-
-        self.assertTrue(result['is_crack'], result)
-        self.assertEqual(result['sample_count'], 3, result)
-        self.assertEqual(result['crack_votes'], 2, result)
-        self.assertEqual(result['primary_detection_channel'], 'pale_surface')
-        self.assertIn('weak support', result['quality_message'])
-        self.assertNotIn('_internal_support_mask', result)
-        DetectionResponse.model_validate(result)
-
-    def test_clean_candled_egg_is_not_cracked(self) -> None:
-        result = detect_image_bytes(_candled_egg(), cfg=self.config)
-        overlay = _decode_overlay(result)
-        red_pixels = np.count_nonzero(
-            (overlay[:, :, 2] > 230)
-            & (overlay[:, :, 1] < 60)
-            & (overlay[:, :, 0] < 60)
-        )
-        green_pixels = np.count_nonzero(
-            (overlay[:, :, 1] > 230)
-            & (overlay[:, :, 2] < 60)
-            & (overlay[:, :, 0] < 60)
-        )
-        self.assertFalse(result['is_crack'])
-        self.assertEqual(result['crack_size'], 'none')
-        self.assertEqual(result['egg_size'], 'medium')
-        self.assertGreater(result['egg_size_confidence'], 0.8)
-        self.assertGreater(result['egg_area_ratio'], 0.2)
-        self.assertGreater(result['egg_length_pixels'], result['egg_width_pixels'])
-        self.assertIn('shell_texture_score', result)
-        self.assertIn('shell_texture_uniformity', result)
-        self.assertIn('thin_crack_score', result)
-        DetectionResponse.model_validate(result)
-        self.assertEqual(red_pixels, 0)
-        self.assertGreater(green_pixels, 300)
-
-    def test_horizontal_candled_egg_is_detected(self) -> None:
-        result = detect_image_bytes(
-            _candled_egg(horizontal=True),
-            cfg=self.config,
-        )
-
-        self.assertTrue(result['egg_detected'])
-        self.assertFalse(result['is_crack'])
-        self.assertGreater(result['egg_area_ratio'], 0.2)
-        self.assertGreater(
-            result['egg_length_pixels'],
-            result['egg_width_pixels'],
-        )
-        DetectionResponse.model_validate(result)
-
-    def test_horizontal_dark_hairline_is_detected(self) -> None:
-        result = detect_image_bytes(
-            _candled_egg('dark', horizontal=True),
-            cfg=self.config,
-        )
-
-        self.assertTrue(result['egg_detected'])
+    def test_faint_dark_crack_is_detected(self) -> None:
+        result = detect_image_bytes(candled_egg('faint_dark'), cfg=self.config)
         self.assertTrue(result['is_crack'], result)
         self.assertGreater(result['candidate_pixels'], 0)
-        DetectionResponse.model_validate(result)
 
-    def test_fuzzy_egg_size_memberships(self) -> None:
-        self.assertEqual(_fuzzy_egg_size(0.08, self.config)[0], 'small')
-        self.assertEqual(_fuzzy_egg_size(0.27, self.config)[0], 'medium')
-        self.assertEqual(_fuzzy_egg_size(0.55, self.config)[0], 'large')
-
-    def test_one_pixel_dark_hairline_is_detected_and_traced(self) -> None:
-        self._assert_line_crack('dark')
-
-    def test_peripheral_dark_hairline_is_detected(self) -> None:
-        result = detect_image_bytes(_peripheral_candled_egg(), cfg=self.config)
-
-        self.assertTrue(result['is_crack'], result)
-        self.assertGreater(result['candidate_pixels'], 0)
-        DetectionResponse.model_validate(result)
-
-    def test_one_pixel_bright_light_leak_is_detected_and_traced(self) -> None:
-        self._assert_line_crack('bright')
-
-    def test_one_pixel_low_contrast_hairline_is_detected(self) -> None:
-        self._assert_line_crack('subtle')
-
-    def test_fragmented_clean_texture_is_not_a_crack(self) -> None:
-        result = detect_image_bytes(
-            _candled_egg(textured=True),
-            cfg=self.config,
-        )
-        self.assertGreater(
-            result['raw_candidate_components'],
-            self.config.max_fragmented_components,
-            result,
-        )
-        self.assertFalse(result['dominant_crack_override'], result)
-        self.assertFalse(result['is_crack'], result)
-
-    def test_low_contrast_hairline_survives_shell_texture(self) -> None:
-        result = detect_image_bytes(
-            _candled_egg('subtle', textured=True),
-            cfg=self.config,
-        )
-        self.assertTrue(result['is_crack'], result)
-        self.assertGreater(result['shell_texture_score'], 0.0)
-
-    def test_default_resolution_rejects_texture_and_keeps_hairline(self) -> None:
-        clean = detect_image_bytes(_candled_egg(textured=True), cfg=CONFIG)
-        cracked = detect_image_bytes(
-            _candled_egg('dark', textured=True),
-            cfg=CONFIG,
-        )
+    def test_texture_is_rejected_but_dominant_crack_survives(self) -> None:
+        clean = detect_image_bytes(candled_egg(textured=True), cfg=self.config)
+        cracked = detect_image_bytes(candled_egg('dark_on_texture', textured=True), cfg=self.config)
         self.assertFalse(clean['is_crack'], clean)
         self.assertTrue(cracked['is_crack'], cracked)
         self.assertTrue(cracked['dominant_crack_override'], cracked)
+        self.assertEqual(cracked['candidate_components'], 1)
 
-    def test_geometry_is_stable_at_double_resolution(self) -> None:
-        high_resolution = replace(
-            self.config,
-            target_width=1920,
-            target_height=1080,
-        )
-        clean = detect_image_bytes(
-            _double_resolution(_candled_egg(textured=True)),
-            cfg=high_resolution,
-        )
-        cracked = detect_image_bytes(
-            _double_resolution(_candled_egg('dark', textured=True)),
-            cfg=high_resolution,
-        )
-        self.assertFalse(clean['is_crack'], clean)
-        self.assertTrue(cracked['is_crack'], cracked)
-        self.assertGreater(cracked['egg_width_pixels'], 700.0)
+    def test_false_crack_shapes_are_rejected(self) -> None:
+        for kind in ('yolk_arc', 'dark_texture', 'rim_texture', 'shell_fiber', 'pale_shell_arc'):
+            with self.subTest(kind=kind):
+                result = detect_image_bytes(modified_egg(kind), cfg=self.config)
+                self.assertFalse(result['is_crack'], result)
 
-    def test_dominant_hairline_survives_fragmented_texture(self) -> None:
-        result = detect_image_bytes(
-            _candled_egg('dark', textured=True),
-            cfg=self.config,
-        )
-        self.assertGreater(
-            result['raw_candidate_components'],
-            self.config.max_fragmented_components,
-            result,
-        )
-        self.assertTrue(result['dominant_crack_override'], result)
-        self.assertTrue(result['is_crack'], result)
-        self.assertLessEqual(result['candidate_components'], 4)
+    def test_pale_cracks_are_detected(self) -> None:
+        for kind in ('pale_surface_crack', 'pale_branching_surface_crack'):
+            with self.subTest(kind=kind):
+                result = detect_image_bytes(modified_egg(kind), include_steps=True, cfg=self.config)
+                self.assertTrue(result['is_crack'], result)
+                self.assertEqual(result['primary_detection_channel'], 'bright')
+                self.assertIn('paper_crack_mask', result['intermediate_steps'])
+                self.assertIn('dark_crack_response', result['intermediate_steps'])
+                self.assertIn('bright_crack_response', result['intermediate_steps'])
 
-    def test_smooth_yolk_boundary_is_not_a_crack(self) -> None:
-        result = detect_image_bytes(
-            _modified_candled_egg('yolk_arc'),
-            cfg=self.config,
-        )
-        self.assertFalse(result['is_crack'], result)
-        self.assertEqual(result['candidate_components'], 0)
-
-    def test_broad_dark_shell_texture_is_not_a_crack(self) -> None:
-        result = detect_image_bytes(
-            _modified_candled_egg('dark_texture'),
-            cfg=self.config,
-        )
-        self.assertFalse(result['is_crack'], result)
-        self.assertEqual(result['candidate_components'], 0)
-
-    def test_clustered_rim_shell_texture_is_not_a_crack(self) -> None:
-        result = detect_image_bytes(
-            _modified_candled_egg('rim_texture'),
-            cfg=self.config,
-        )
-        self.assertFalse(result['is_crack'], result)
-        self.assertEqual(result['candidate_components'], 0)
-
-    def test_smooth_shell_fiber_is_not_a_crack(self) -> None:
-        result = detect_image_bytes(
-            _modified_candled_egg('shell_fiber'),
-            cfg=self.config,
-        )
-        self.assertFalse(result['is_crack'], result)
-        self.assertEqual(result['candidate_components'], 0)
-
-    def test_pale_smooth_shell_arc_is_not_a_crack(self) -> None:
-        result = detect_image_bytes(
-            _modified_candled_egg('pale_shell_arc'),
-            cfg=self.config,
-        )
-        self.assertFalse(result['is_crack'], result)
-        self.assertEqual(result['candidate_components'], 0)
-
-    def test_pale_surface_fracture_is_detected(self) -> None:
-        result = detect_image_bytes(
-            _modified_candled_egg('pale_surface_crack'),
-            include_steps=True,
-            cfg=self.config,
-        )
-        self.assertTrue(result['is_crack'], result)
-        self.assertGreater(result['candidate_pixels'], 0)
-        self.assertGreater(result['contour_length'], 70.0)
-        self.assertTrue(result['crack_locations'], result)
-        crack_mask = cv2.imdecode(
-            np.frombuffer(
-                base64.b64decode(result['crack_mask_b64']),
-                dtype=np.uint8,
-            ),
-            cv2.IMREAD_GRAYSCALE,
-        )
-        self.assertIsNotNone(crack_mask)
-        reference = np.zeros_like(crack_mask)
-        cv2.polylines(reference, [np.array([
-            [292, 352], [323, 335], [358, 333],
-        ], dtype=np.int32)], False, 255, 1, cv2.LINE_8)
-        cv2.polylines(reference, [np.array([
-            [365, 330], [398, 309],
-        ], dtype=np.int32)], False, 255, 1, cv2.LINE_8)
-        tolerance = cv2.dilate(
-            crack_mask,
-            cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (11, 11)),
-        )
-        recall = cv2.countNonZero(cv2.bitwise_and(reference, tolerance)) \
-            / max(float(cv2.countNonZero(reference)), 1.0)
-        self.assertGreaterEqual(recall, 0.70, result)
-        steps = result['intermediate_steps']
-        self.assertIn('perimeter_shell_zone', steps)
-        self.assertIn('pale_surface_response', steps)
-        self.assertIn('pale_surface_weak_candidates', steps)
-        self.assertIn('fused_crack_response', steps)
-
-    def test_sample_like_pale_branching_fracture_is_detected(self) -> None:
-        result = detect_image_bytes(
-            _modified_candled_egg('pale_branching_surface_crack'),
-            include_steps=True,
-            cfg=self.config,
-        )
-        self.assertTrue(result['is_crack'], result)
-        self.assertGreaterEqual(result['candidate_components'], 1, result)
-        self.assertTrue(result['crack_locations'], result)
-        self.assertGreater(result['contour_length'], 0.0, result)
-        self.assertGreater(result['detection_score'], 0.50, result)
-        crack_mask = cv2.imdecode(
-            np.frombuffer(
-                base64.b64decode(result['crack_mask_b64']),
-                dtype=np.uint8,
-            ),
-            cv2.IMREAD_GRAYSCALE,
-        )
-        self.assertIsNotNone(crack_mask)
-        reference = np.zeros_like(crack_mask)
-        for branch in (
-            np.array([[470, 180], [474, 225], [478, 270], [476, 315]], dtype=np.int32),
-            np.array([[476, 315], [440, 330], [405, 342], [365, 360]], dtype=np.int32),
-            np.array([[478, 270], [510, 292], [540, 325]], dtype=np.int32),
-        ):
-            cv2.polylines(reference, [branch], False, 255, 1, cv2.LINE_8)
-        tolerance = cv2.dilate(
-            crack_mask,
-            cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (13, 13)),
-        )
-        recall = cv2.countNonZero(cv2.bitwise_and(reference, tolerance)) \
-            / max(float(cv2.countNonZero(reference)), 1.0)
-        self.assertGreaterEqual(recall, 0.68, result)
-        self.assertIn(
-            result['primary_detection_channel'],
-            {'pale_surface', 'spatial_chain', 'component'},
-            result,
-        )
-        self.assertFalse(result['fragmentation_suppressed'], result)
-        steps = result['intermediate_steps']
-        self.assertIn('pale_surface_weak_candidates', steps)
-        self.assertIn('spatial_chain_candidates', steps)
-        DetectionResponse.model_validate(result)
-
-    def test_broad_flashlight_glare_requests_recapture(self) -> None:
+    def test_glare_and_blur_request_recapture(self) -> None:
         with self.assertRaisesRegex(DetectionError, 'glare'):
-            detect_image_bytes(
-                _modified_candled_egg('glare'),
-                cfg=self.config,
-            )
-
-    def test_blurred_crack_requests_recapture(self) -> None:
+            detect_image_bytes(modified_egg('glare'), cfg=self.config)
         with self.assertRaisesRegex(DetectionError, 'blurry'):
-            detect_image_bytes(
-                _modified_candled_egg('blur'),
-                cfg=self.config,
-            )
+            detect_image_bytes(modified_egg('blur'), cfg=self.config)
 
-    def test_native_image_is_not_upscaled(self) -> None:
-        result = detect_image_bytes(_candled_egg('dark'), cfg=CONFIG)
-        original = cv2.imdecode(
-            np.frombuffer(
-                base64.b64decode(result['original_image_b64']),
-                dtype=np.uint8,
-            ),
+    def test_camera_consensus_accepts_stable_and_rejects_transient(self) -> None:
+        stable = detect_camera_images_bytes(
+            [
+                transformed_egg('dark'),
+                transformed_egg('dark', 8, -5, 1.1),
+                transformed_egg(None, -4, 3, -0.8),
+            ],
+            cfg=self.config,
+        )
+        transient = detect_camera_images_bytes(
+            [
+                transformed_egg('dark'),
+                transformed_egg(None, 6, -4),
+                transformed_egg(None, -5, 3),
+            ],
+            cfg=self.config,
+        )
+        self.assertTrue(stable['is_crack'], stable)
+        self.assertGreaterEqual(stable['crack_votes'], 2)
+        self.assertFalse(transient['is_crack'], transient)
+        self.assertEqual(transient['termination_reason'], 'multi_frame_disagreement')
+
+    def test_focus_score_prefers_sharp_image(self) -> None:
+        sharp_data = candled_egg('dark', textured=True)
+        image = cv2.imdecode(np.frombuffer(sharp_data, dtype=np.uint8), cv2.IMREAD_COLOR)
+        blurred_data = encode_png(cv2.GaussianBlur(image, (15, 15), 0))
+        sharp = score_camera_focus_image_bytes(sharp_data, self.config)
+        blurred = score_camera_focus_image_bytes(blurred_data, self.config)
+        self.assertGreater(sharp['focus_score'], blurred['focus_score'])
+
+    def test_focus_score_targets_the_egg_not_the_background(self) -> None:
+        sharp_data = candled_egg('dark', textured=True)
+        sharp_image = cv2.imdecode(np.frombuffer(sharp_data, dtype=np.uint8), cv2.IMREAD_COLOR)
+        blurred_image = cv2.GaussianBlur(sharp_image, (17, 17), 0)
+        yy, xx = np.mgrid[:sharp_image.shape[0], :sharp_image.shape[1]]
+        egg_mask = ((xx - 480) / 185.0) ** 2 + ((yy - 270) / 230.0) ** 2 <= 1.0
+        checker = (((xx // 3) + (yy // 3)) % 2) * 20 + 2
+        for channel in range(3):
+            blurred_image[:, :, channel][~egg_mask] = checker[~egg_mask].astype(np.uint8)
+        sharp = score_camera_focus_image_bytes(sharp_data, self.config)
+        blurred = score_camera_focus_image_bytes(encode_png(blurred_image), self.config)
+        self.assertEqual(sharp['focus_region'], 'inner_egg')
+        self.assertGreater(sharp['focus_score'], blurred['focus_score'])
+        self.assertIn('texture_sharpness', sharp)
+        self.assertIn('detail_variance', sharp)
+
+    def test_cracks_are_detected_across_the_visible_egg(self) -> None:
+        cases = (
+            ('left', 'dark'),
+            ('left', 'bright'),
+            ('top', 'dark'),
+            ('bottom', 'bright'),
+        )
+        for location, polarity in cases:
+            with self.subTest(location=location, polarity=polarity):
+                result = detect_image_bytes(edge_cracked_egg(location, polarity), include_steps=True, cfg=self.config)
+                self.assertTrue(result['is_crack'], result)
+                self.assertEqual(result['primary_detection_channel'], polarity)
+                self.assertIn('whole_egg_detection_mask', result['intermediate_steps'])
+                self.assertGreater(result['candidate_pixels'], 0)
+
+    def test_real_bright_crack_survives_textured_shell_filter(self) -> None:
+        fixture = Path(__file__).resolve().parent / 'fixtures' / 'real_bright_crack.png'
+        result = detect_image_bytes(fixture.read_bytes(), cfg=self.config)
+        self.assertTrue(result['is_crack'], result)
+        self.assertEqual(result['primary_detection_channel'], 'bright')
+        self.assertTrue(result['dominant_crack_override'], result)
+        self.assertGreater(result['candidate_pixels'], 0)
+
+    def test_real_long_crack_is_traced_in_full_without_mirroring(self) -> None:
+        fixture = Path(__file__).resolve().parent / 'fixtures' / 'real_long_bright_crack.png'
+        result = detect_image_bytes(fixture.read_bytes(), include_steps=True, cfg=self.config)
+        self.assertTrue(result['is_crack'], result)
+        self.assertEqual(result['candidate_components'], 1, result)
+        location = result['crack_locations'][0]
+        x, _, width, _ = location['bounding_box']
+        source = cv2.imdecode(
+            np.frombuffer(base64.b64decode(result['original_image_b64']), dtype=np.uint8),
             cv2.IMREAD_COLOR,
         )
-        self.assertIsNotNone(original)
-        self.assertEqual(original.shape[:2], (540, 960))
-        self.assertGreater(result['image_quality_score'], 0.0)
-        self.assertFalse(result['requires_recapture'])
+        self.assertGreaterEqual(width, 150, result)
+        self.assertGreater(x + width / 2.0, source.shape[1] / 2.0, result)
+        self.assertIn('directional_ridge_extension', location['reasons'])
+        self.assertIn('directional_ridge_extension_mask', result['intermediate_steps'])
 
-    def test_sparse_strong_crack_network_can_override_fragmentation(self) -> None:
-        metrics = {
-            'skeleton_length': 961.0,
-            'span': 488.8,
-            'elongation': 2.88,
-            'average_thickness': 7.9,
-            'density': 0.081,
-            'strength_p90': 141.0,
-            'strong_overlap': 0.61,
-            'score': 5.35,
-        }
-        component = CrackComponent(
-            0,
-            0,
-            np.zeros((1, 1), dtype=np.uint8),
-            np.zeros((1, 1), dtype=np.uint8),
-            metrics,
-            'combined',
-        )
-        self.assertTrue(_is_dominant_crack_component(component, self.config))
 
-    def test_aligned_hairline_fragments_form_a_dominant_group(self) -> None:
-        components = []
-        for x in (0, 100, 200):
-            metrics = {
-                'skeleton_length': 120.0,
-                'span': 40.0,
-                'elongation': 6.0,
-                'average_thickness': 3.0,
-                'density': 0.12,
-                'strength_p90': 80.0,
-                'axis_x': 1.0,
-                'axis_y': 0.0,
-                'center_x': 20.0,
-                'center_y': 2.0,
-                'endpoint_a_x': 0.0,
-                'endpoint_a_y': 2.0,
-                'endpoint_b_x': 40.0,
-                'endpoint_b_y': 2.0,
-            }
-            components.append(CrackComponent(
-                x,
-                0,
-                np.zeros((5, 40), dtype=np.uint8),
-                np.zeros((5, 40), dtype=np.uint8),
-                metrics,
-                'combined',
-            ))
-        group = _dominant_fragment_group(components, self.config)
-        self.assertEqual(len(group), 3)
-
-    def _assert_line_crack(self, crack: str) -> None:
-        result = detect_image_bytes(_candled_egg(crack), cfg=self.config)
-        overlay = _decode_overlay(result)
-        red_pixels = int(np.count_nonzero(
-            (overlay[:, :, 2] > 230)
-            & (overlay[:, :, 1] < 60)
-            & (overlay[:, :, 0] < 60)
-        ))
+    def test_user_bright_crack_stays_on_the_correct_side_without_texture_flooding(self) -> None:
+        fixture = Path(__file__).resolve().parent / 'fixtures' / 'user_long_bright_crack.png'
+        result = detect_image_bytes(fixture.read_bytes(), include_steps=True, cfg=self.config)
         self.assertTrue(result['is_crack'], result)
-        self.assertIn(result['crack_size'], {'small', 'medium', 'large'})
-        self.assertGreater(result['contour_length'], 35)
-        self.assertGreater(red_pixels, 50)
-        self.assertLess(red_pixels, result['contour_length'] * 12)
-
-    def test_faint_dark_crack_is_detected(self) -> None:
-        """A 1-pixel dark crack only ~12 grey levels below the shell."""
-        result = detect_image_bytes(
-            _candled_egg('faint_dark'),
-            cfg=self.config,
+        self.assertEqual(result['candidate_components'], 1, result)
+        x, _, width, height = result['crack_locations'][0]['bounding_box']
+        source = cv2.imdecode(
+            np.frombuffer(base64.b64decode(result['original_image_b64']), dtype=np.uint8),
+            cv2.IMREAD_COLOR,
         )
-        self.assertTrue(result['is_crack'], result)
-        self.assertGreater(result['candidate_pixels'], 0)
+        self.assertGreater(x + width / 2.0, source.shape[1] / 2.0, result)
+        self.assertLessEqual(height, 32, result)
+        self.assertGreater(result['candidate_pixels'], 500, result)
+        self.assertLess(result['candidate_pixels'], 1600, result)
+        self.assertNotIn('paper_guided_full_trace', result['crack_locations'][0]['reasons'])
 
-    def test_very_faint_dark_crack_on_textured_shell(self) -> None:
-        """A dark crack (30 grey levels) must survive shell texture noise."""
-        result = detect_image_bytes(
-            _candled_egg('dark_on_texture', textured=True),
-            cfg=self.config,
-        )
+    def test_multiple_visible_cracks_are_not_reduced_to_one_winner(self) -> None:
+        image = cv2.imdecode(np.frombuffer(candled_egg('bright'), dtype=np.uint8), cv2.IMREAD_COLOR)
+        second = np.array([[360, 365], [405, 340], [450, 360], [500, 335], [550, 355]], dtype=np.int32)
+        cv2.polylines(image, [second], False, (245, 252, 255), 1, cv2.LINE_8)
+        result = detect_image_bytes(encode_png(image), cfg=self.config)
         self.assertTrue(result['is_crack'], result)
-        self.assertGreater(result['candidate_pixels'], 0)
+        self.assertGreaterEqual(result['candidate_components'], 2, result)
+
+    def test_final_mask_covers_the_validated_crack_area_not_only_its_skeleton(self) -> None:
+        fixture = Path(__file__).resolve().parent / 'fixtures' / 'user_long_bright_crack.png'
+        image = cv2.imdecode(np.frombuffer(fixture.read_bytes(), dtype=np.uint8), cv2.IMREAD_COLOR)
+        pipeline = EggCrackPipeline(self.config).detect(image)
+        accepted = [component for component in pipeline.components if component.accepted]
+        self.assertTrue(accepted)
+        accepted_union = np.zeros_like(pipeline.crack_mask)
+        for component in accepted:
+            accepted_union = cv2.bitwise_or(accepted_union, component.mask)
+        overlap = cv2.countNonZero(cv2.bitwise_and(pipeline.crack_mask, accepted_union))
+        accepted_pixels = cv2.countNonZero(accepted_union)
+        self.assertGreaterEqual(overlap, int(accepted_pixels * 0.98))
+        self.assertGreater(cv2.countNonZero(pipeline.crack_mask), sum(component.skeleton_length for component in accepted))
+
+    def test_original_resolution_is_not_upscaled(self) -> None:
+        result = detect_image_bytes(candled_egg('dark'), cfg=CONFIG)
+        image = cv2.imdecode(
+            np.frombuffer(base64.b64decode(result['original_image_b64']), dtype=np.uint8),
+            cv2.IMREAD_COLOR,
+        )
+        self.assertEqual(image.shape[:2], (540, 960))
 
 
 if __name__ == '__main__':

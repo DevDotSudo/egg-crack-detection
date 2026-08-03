@@ -8,17 +8,28 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 
 from app.core.config import CONFIG
+from app.core.paths import runtime_root
+from app.detection.calibration import CalibrationError, CameraCalibrator
 from app.repositories.db import DetectionDB
-from app.schemas.detection import DetectionResponse, HistorySaveRequest
+from app.schemas.detection import (
+    CalibrationProfileResponse,
+    DetectionResponse,
+    HistorySaveRequest,
+    ManualCalibrationRequest,
+)
 from app.services.detector import (
+    CALIBRATION_STORE,
     DetectionError,
+    _correct_camera_orientation,
+    _decode_input_image,
+    _encode_image,
     detect_camera_image_bytes,
     detect_camera_images_bytes,
     detect_image_bytes,
     score_camera_focus_image_bytes,
 )
 
-BASE_DIR = Path(__file__).resolve().parents[3]
+BASE_DIR = runtime_root()
 db = DetectionDB(BASE_DIR / 'data' / 'detections.db')
 
 # Remove stale JSON history file if it still exists on disk.
@@ -29,7 +40,7 @@ if _legacy_json.exists():
     except OSError:
         pass
 
-app = FastAPI(title='Egg Crack Detection API', version='1.7.0')
+app = FastAPI(title='Egg Crack Detection API', version='2.3.0')
 app.add_middleware(
     CORSMiddleware,
     allow_origins=['*'],
@@ -45,7 +56,81 @@ def health() -> dict:
         'status': 'ok',
         'engine': 'opencv-image-processing-only',
         'camera_owner': 'flutter-frontend',
-        'version': '1.7',
+        'version': '2.3',
+        'camera_distance_inches': CONFIG.calibration.camera_distance_inches,
+        'egg_size_calibrated': CALIBRATION_STORE.load() is not None,
+    }
+
+
+@app.get('/calibration', response_model=CalibrationProfileResponse)
+def get_calibration():
+    profile = CALIBRATION_STORE.load()
+    if profile is None:
+        return {
+            'calibrated': False,
+            'required_camera_distance_inches': CONFIG.calibration.camera_distance_inches,
+            'profile': None,
+            'message': 'Calibrate the fixed 4-inch camera setup before using egg-size classification',
+        }
+    return {
+        'calibrated': True,
+        'required_camera_distance_inches': CONFIG.calibration.camera_distance_inches,
+        'profile': profile.to_dict(),
+        'message': 'The egg-size scale is calibrated for the fixed 4-inch camera setup',
+    }
+
+
+@app.post('/calibration/manual', response_model=CalibrationProfileResponse)
+def save_manual_calibration(request: ManualCalibrationRequest):
+    try:
+        profile = CameraCalibrator(CONFIG).manual_profile(
+            request.reference_width_mm,
+            request.reference_width_pixels,
+            request.processed_width,
+            request.processed_height,
+        )
+        CALIBRATION_STORE.save(profile)
+        return {
+            'calibrated': True,
+            'required_camera_distance_inches': CONFIG.calibration.camera_distance_inches,
+            'profile': profile.to_dict(),
+            'message': 'Manual pixel-to-millimeter calibration was saved',
+        }
+    except CalibrationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post('/calibration/reference', response_model=CalibrationProfileResponse)
+async def save_reference_calibration(
+    image: UploadFile = File(...),
+    reference_width_mm: float = Form(30.0),
+    reference_shape: str = Form('circle'),
+):
+    try:
+        _, data = await _read_image_upload(image)
+        source = _correct_camera_orientation(_decode_input_image(data), CONFIG)
+        profile, overlay = CameraCalibrator(CONFIG).image_profile(
+            source,
+            reference_width_mm,
+            reference_shape,
+        )
+        CALIBRATION_STORE.save(profile)
+        return {
+            'calibrated': True,
+            'required_camera_distance_inches': CONFIG.calibration.camera_distance_inches,
+            'profile': profile.to_dict(),
+            'message': 'Reference-image pixel-to-millimeter calibration was saved',
+            'overlay_image_b64': _encode_image(overlay, '.png'),
+        }
+    except (CalibrationError, DetectionError, cv2.error) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.delete('/calibration')
+def clear_calibration():
+    return {
+        'deleted': CALIBRATION_STORE.clear(),
+        'required_camera_distance_inches': CONFIG.calibration.camera_distance_inches,
     }
 
 
@@ -237,9 +322,11 @@ def export_report():
     writer = csv.DictWriter(output, fieldnames=[
         'id', 'source_name', 'timestamp', 'is_crack',
         'egg_size', 'egg_size_confidence', 'egg_size_score',
-        'egg_area_ratio', 'egg_width_pixels', 'egg_length_pixels',
-        'egg_width_ratio', 'egg_length_ratio',
-        'crack_size', 'crack_size_confidence',
+        'egg_area_ratio', 'egg_width_pixels', 'egg_height_pixels', 'egg_length_pixels',
+        'egg_width_mm', 'egg_height_mm', 'egg_width_ratio', 'egg_length_ratio',
+        'egg_measurement_valid', 'egg_measurement_message',
+        'camera_distance_inches', 'calibration_pixels_per_mm',
+        'crack_size', 'crack_size_confidence', 'crack_size_score',
         'detection_iterations', 'search_iterations', 'termination_reason',
         'thin_crack_detected', 'thin_crack_score',
         'shell_texture_score', 'shell_texture_uniformity',
